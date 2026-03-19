@@ -1,0 +1,43 @@
+{
+  "version": 2,
+  "builds": [
+    { "src": "*.html", "use": "@vercel/static" }
+  ],
+  "routes": [
+    {
+      "src": "/recibo",
+      "dest": "/recibo.html",
+      "headers": { "Content-Type": "text/html; charset=utf-8" }
+    },
+    {
+      "src": "/recibo.html",
+      "dest": "/recibo.html",
+      "headers": { "Content-Type": "text/html; charset=utf-8" }
+    },
+    {
+      "src": "/",
+      "dest": "/index.html",
+      "headers": { "Content-Type": "text/html; charset=utf-8" }
+    },
+    {
+      "src": "/index.html",
+      "dest": "/index.html",
+      "headers": { "Content-Type": "text/html; charset=utf-8" }
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*).html",
+      "headers": [
+        { "key": "Content-Type", "value": "text/html; charset=utf-8" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" }
+      ]
+    },
+    {
+      "source": "/",
+      "headers": [
+        { "key": "Content-Type", "value": "text/html; charset=utf-8" }
+      ]
+    }
+  ]
+}

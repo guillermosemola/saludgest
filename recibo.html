@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recibo de Cobro — SaludGest Pro</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ===== PANTALLA (vista de gestión) ===== */
+:root {
+  --bg:#060b14;--s1:#0d1520;--s2:#111d2e;--s3:#162338;
+  --border:#1e3354;--border2:#243d5e;
+  --teal:#00e5b4;--blue:#3b8eff;--amber:#ffb830;--red:#ff4757;--green:#22d3a0;
+  --text:#e8f0fc;--t2:#8da8cc;--t3:#4e6a8c;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(59,142,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(59,142,255,.025) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+
+.screen-wrap{position:relative;z-index:1;padding:32px 24px;max-width:1100px;margin:0 auto}
+
+.page-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px}
+.page-ttl{font-size:22px;font-weight:800}
+.page-sub{font-size:12px;color:var(--t3);font-family:'JetBrains Mono',monospace;margin-top:2px}
+
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:9px;font-family:'Sora',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s;white-space:nowrap}
+.btn-teal{background:var(--teal);color:#000}.btn-teal:hover{background:#00f7c3;box-shadow:0 0 20px rgba(0,229,180,.3);transform:translateY(-1px)}
+.btn-ghost{background:var(--s2);color:var(--t2);border:1px solid var(--border)}.btn-ghost:hover{background:var(--s3);color:var(--text)}
+.btn-blue{background:var(--blue);color:#fff}.btn-blue:hover{background:#5aa0ff}
+.btn-sm{padding:6px 13px;font-size:12px}
+
+.card{background:var(--s1);border:1px solid var(--border);border-radius:13px;padding:22px 24px}
+.card-ttl{font-size:14px;font-weight:700;margin-bottom:16px}
+
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:1fr 1fr 1fr}
+
+.fr{display:flex;flex-direction:column;gap:5px}
+.fl{font-size:11px;font-weight:600;color:var(--t2);letter-spacing:.03em}
+input,select{background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 12px;font-family:'Sora',sans-serif;font-size:13px;outline:none;transition:border-color .15s,box-shadow .15s;width:100%}
+input:focus,select:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(0,229,180,.09)}
+input::placeholder{color:var(--t3)}
+select option{background:var(--s2)}
+
+.bdg{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:99px;font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace}
+.bok{background:rgba(34,211,160,.13);color:var(--green)}
+.bin{background:rgba(59,142,255,.13);color:var(--blue)}
+
+.divider{height:1px;background:var(--border);margin:18px 0}
+
+/* Preview card */
+.preview-wrap{margin-top:28px}
+.preview-label{font-size:12px;color:var(--t3);font-family:'JetBrains Mono',monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px}
+.preview-card{background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5);max-width:680px;margin:0 auto}
+
+/* ===== RECIBO (diseño imprimible) ===== */
+.recibo{background:#fff;color:#1a1a2e;font-family:'Sora',sans-serif;width:680px;min-height:480px}
+
+.rec-header{background:linear-gradient(135deg,#0a1628 0%,#1a3050 100%);padding:28px 36px 22px;display:flex;align-items:flex-start;justify-content:space-between}
+.rec-logo-area{display:flex;flex-direction:column;gap:4px}
+.rec-logo-ico{width:44px;height:44px;background:linear-gradient(135deg,#00e5b4,#3b8eff);border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:6px}
+.rec-empresa{font-size:18px;font-weight:800;color:#fff;letter-spacing:.01em}
+.rec-empresa-sub{font-size:11px;color:rgba(255,255,255,.5);font-family:'JetBrains Mono',monospace;letter-spacing:1px}
+
+.rec-num-area{text-align:right}
+.rec-tipo{font-size:11px;color:#00e5b4;font-family:'JetBrains Mono',monospace;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px}
+.rec-num{font-size:26px;font-weight:800;color:#fff;font-family:'JetBrains Mono',monospace;letter-spacing:-.5px}
+.rec-fecha{font-size:11px;color:rgba(255,255,255,.5);margin-top:4px;font-family:'JetBrains Mono',monospace}
+
+.rec-body{padding:28px 36px 0}
+
+.rec-afiliado-box{background:#f8faff;border:1.5px solid #e2e8f5;border-radius:10px;padding:16px 20px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:flex-start}
+.rec-af-left{}
+.rec-af-label{font-size:10px;color:#8094b0;font-family:'JetBrains Mono',monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px}
+.rec-af-nombre{font-size:16px;font-weight:700;color:#1a1a2e}
+.rec-af-dni{font-size:12px;color:#5a6a82;margin-top:2px;font-family:'JetBrains Mono',monospace}
+.rec-af-right{text-align:right}
+.rec-plan-label{font-size:10px;color:#8094b0;font-family:'JetBrains Mono',monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px}
+.rec-plan{font-size:13px;font-weight:700;color:#1a3050;background:#e8f0ff;padding:4px 12px;border-radius:6px}
+.rec-hc{font-size:11px;color:#8094b0;margin-top:5px;font-family:'JetBrains Mono',monospace}
+
+.rec-detalle-ttl{font-size:10px;color:#8094b0;font-family:'JetBrains Mono',monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px}
+
+.rec-detalle-table{width:100%;border-collapse:collapse;font-size:13px}
+.rec-detalle-table thead th{padding:8px 12px;text-align:left;font-size:10px;color:#8094b0;font-family:'JetBrains Mono',monospace;letter-spacing:.8px;text-transform:uppercase;border-bottom:1.5px solid #e2e8f5;background:#f8faff}
+.rec-detalle-table thead th:last-child{text-align:right}
+.rec-detalle-table tbody td{padding:11px 12px;color:#2d3748;border-bottom:1px solid #f0f4fa}
+.rec-detalle-table tbody td:last-child{text-align:right;font-family:'JetBrains Mono',monospace;font-weight:600}
+.rec-detalle-table tbody tr:last-child td{border-bottom:none}
+
+.rec-total-row{background:#f0faf7;margin:0 -36px;padding:16px 36px;display:flex;justify-content:space-between;align-items:center;margin-top:16px}
+.rec-total-label{font-size:12px;color:#5a6a82;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.rec-total-monto{font-size:28px;font-weight:800;color:#0a8f70;font-family:'JetBrains Mono',monospace;letter-spacing:-.5px}
+
+.rec-footer{padding:20px 36px 24px;display:flex;justify-content:space-between;align-items:flex-end}
+.rec-footer-left{}
+.rec-medio{font-size:11px;color:#8094b0;text-transform:uppercase;letter-spacing:1px;font-family:'JetBrains Mono',monospace;margin-bottom:3px}
+.rec-medio-val{font-size:13px;font-weight:600;color:#2d3748}
+.rec-obs{font-size:11px;color:#a0aec0;margin-top:6px;max-width:300px}
+
+.rec-firma-area{text-align:right}
+.rec-firma-linea{width:140px;height:1px;background:#2d3748;margin-left:auto;margin-bottom:5px}
+.rec-firma-label{font-size:10px;color:#8094b0;font-family:'JetBrains Mono',monospace;letter-spacing:1px}
+
+.rec-watermark{text-align:center;padding:10px 36px 20px;font-size:10px;color:#c8d5e8;font-family:'JetBrains Mono',monospace;letter-spacing:1.5px;border-top:1px dashed #e2e8f5;margin-top:4px}
+
+/* Estado del recibo */
+.rec-estado-stamp{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-25deg);
+  font-size:52px;font-weight:900;font-family:'JetBrains Mono',monospace;
+  letter-spacing:4px;opacity:.08;color:#0a8f70;text-transform:uppercase;
+  pointer-events:none;white-space:nowrap;
+}
+
+/* ===== PRINT ===== */
+@media print {
+  body{background:#fff!important}
+  body::before{display:none}
+  .screen-wrap{padding:0;max-width:none}
+  .page-hd,.preview-label,.btn-row,.screen-form{display:none!important}
+  .preview-wrap{margin-top:0}
+  .preview-card{box-shadow:none;border-radius:0;max-width:none;margin:0}
+  .recibo{width:100%;min-height:100vh}
+  @page{margin:0;size:A4}
+}
+</style>
+</head>
+<body>
+
+<div class="screen-wrap">
+
+  <!-- HEADER -->
+  <div class="page-hd">
+    <div>
+      <div class="page-ttl">🧾 Emisión de Recibo</div>
+      <div class="page-sub">Módulo de cobranzas · SaludGest Pro</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost btn-sm" onclick="window.close()">← Volver</button>
+      <button class="btn btn-blue btn-sm" onclick="imprimirRecibo()">🖨️ Imprimir</button>
+      <button class="btn btn-teal btn-sm" onclick="descargarPDF()">⬇️ Descargar PDF</button>
+    </div>
+  </div>
+
+  <!-- FORMULARIO -->
+  <div class="screen-form">
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-ttl">Datos del Cobro</div>
+      <div class="grid g3" style="margin-bottom:14px">
+        <div class="fr">
+          <label class="fl">N° Recibo</label>
+          <input type="text" id="f-num" value="" placeholder="REC-2026-00001">
+        </div>
+        <div class="fr">
+          <label class="fl">Fecha de Cobro</label>
+          <input type="date" id="f-fecha">
+        </div>
+        <div class="fr">
+          <label class="fl">Período</label>
+          <input type="text" id="f-periodo" placeholder="Marzo 2026">
+        </div>
+      </div>
+      <div class="grid g3">
+        <div class="fr">
+          <label class="fl">Afiliado</label>
+          <select id="f-afiliado" onchange="onAfiliado()">
+            <option value="">Seleccionar afiliado…</option>
+          </select>
+        </div>
+        <div class="fr">
+          <label class="fl">Importe ($)</label>
+          <input type="number" id="f-importe" placeholder="0.00" oninput="renderRecibo()">
+        </div>
+        <div class="fr">
+          <label class="fl">Medio de Pago</label>
+          <select id="f-medio" onchange="renderRecibo()">
+            <option>Débito Automático</option>
+            <option>Transferencia Bancaria</option>
+            <option>Efectivo</option>
+            <option>Cheque</option>
+            <option>Tarjeta de Crédito</option>
+            <option>Tarjeta de Débito</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid g2" style="margin-top:14px">
+        <div class="fr">
+          <label class="fl">N° Comprobante / Referencia</label>
+          <input type="text" id="f-comp" placeholder="TRF-0000123 / N° cheque / etc." oninput="renderRecibo()">
+        </div>
+        <div class="fr">
+          <label class="fl">Observaciones (opcional)</label>
+          <input type="text" id="f-obs" placeholder="Pago cuota mensual, descuento, etc." oninput="renderRecibo()">
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end" class="btn-row">
+      <button class="btn btn-teal" onclick="guardarYEmitir()">💾 Guardar Cobro y Emitir Recibo</button>
+    </div>
+  </div>
+
+  <!-- PREVIEW -->
+  <div class="preview-wrap" id="preview-wrap">
+    <div class="preview-label">Vista previa del recibo</div>
+    <div class="preview-card">
+      <div class="recibo" id="recibo-content" style="position:relative">
+
+        <!-- HEADER -->
+        <div class="rec-header">
+          <div class="rec-logo-area">
+            <div class="rec-logo-ico">🏥</div>
+            <div class="rec-empresa" id="r-empresa">ORGANIZACIÓN SUCAR</div>
+            <div class="rec-empresa-sub">SISTEMA INTEGRAL DE SALUD</div>
+          </div>
+          <div class="rec-num-area">
+            <div class="rec-tipo">RECIBO OFICIAL</div>
+            <div class="rec-num" id="r-num">REC-2026-00001</div>
+            <div class="rec-fecha" id="r-fecha">18/03/2026</div>
+          </div>
+        </div>
+
+        <!-- BODY -->
+        <div class="rec-body">
+          <!-- Afiliado -->
+          <div class="rec-afiliado-box">
+            <div class="rec-af-left">
+              <div class="rec-af-label">Recibido de</div>
+              <div class="rec-af-nombre" id="r-nombre">— Seleccione un afiliado —</div>
+              <div class="rec-af-dni" id="r-dni">DNI: —</div>
+            </div>
+            <div class="rec-af-right">
+              <div class="rec-plan-label">Plan</div>
+              <div class="rec-plan" id="r-plan">—</div>
+              <div class="rec-hc" id="r-hc">H.C.: —</div>
+            </div>
+          </div>
+
+          <!-- Detalle -->
+          <div class="rec-detalle-ttl">Detalle del pago</div>
+          <table class="rec-detalle-table">
+            <thead>
+              <tr>
+                <th>Concepto</th>
+                <th>Período</th>
+                <th>Importe</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td id="r-concepto">Cuota mensual de afiliación</td>
+                <td id="r-periodo-td">Marzo 2026</td>
+                <td id="r-importe-det">$0</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- TOTAL -->
+        <div class="rec-total-row">
+          <div class="rec-total-label">Total Cobrado</div>
+          <div class="rec-total-monto" id="r-total">$0</div>
+        </div>
+
+        <!-- FOOTER -->
+        <div class="rec-footer">
+          <div class="rec-footer-left">
+            <div class="rec-medio">Forma de Pago</div>
+            <div class="rec-medio-val" id="r-medio">Débito Automático</div>
+            <div class="rec-obs" id="r-obs" style="display:none"></div>
+            <div style="margin-top:10px">
+              <div class="rec-medio">Comprobante</div>
+              <div class="rec-medio-val" id="r-comp">—</div>
+            </div>
+          </div>
+          <div class="rec-firma-area">
+            <div class="rec-firma-linea"></div>
+            <div class="rec-firma-label">FIRMA AUTORIZADA</div>
+          </div>
+        </div>
+
+        <div class="rec-watermark">
+          SALUDGEST PRO · DOCUMENTO VÁLIDO COMO COMPROBANTE DE PAGO · www.saludgest.com.ar
+        </div>
+
+        <!-- Sello PAGADO -->
+        <div class="rec-estado-stamp" id="r-stamp">PAGADO</div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SCRIPT ===== -->
+<script>
+// ─────────────────────────────────────────────
+// SUPABASE CONFIG
+// ─────────────────────────────────────────────
+const SB_URL = 'https://biaxzvhoolbvjkbuodlv.supabase.co';
+const SB_KEY = 'sb_publishable_fzEhU20w8JwokhxBhQshgQ_QP9L7wTM';
+
+async function sbGet(table, params='') {
+  const r = await fetch(`${SB_URL}/rest/v1/${table}?${params}`, {
+    headers: { apikey: SB_KEY, Authorization: 'Bearer '+SB_KEY }
+  });
+  return r.json();
+}
+
+async function sbPost(table, body) {
+  const r = await fetch(`${SB_URL}/rest/v1/${table}`, {
+    method: 'POST',
+    headers: { apikey: SB_KEY, Authorization: 'Bearer '+SB_KEY,
+      'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+    body: JSON.stringify(body)
+  });
+  return r.json();
+}
+
+async function sbRpc(fn, body) {
+  const r = await fetch(`${SB_URL}/rest/v1/rpc/${fn}`, {
+    method: 'POST',
+    headers: { apikey: SB_KEY, Authorization: 'Bearer '+SB_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  return r.json();
+}
+
+// ─────────────────────────────────────────────
+// ESTADO
+// ─────────────────────────────────────────────
+let _afiliados = [];
+let _selAf = null;
+let _reciboNum = '';
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+async function init() {
+  // Fecha de hoy
+  const hoy = new Date();
+  document.getElementById('f-fecha').value = hoy.toISOString().slice(0,10);
+
+  // Período: mes actual en español
+  const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                 'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  document.getElementById('f-periodo').value = meses[hoy.getMonth()] + ' ' + hoy.getFullYear();
+
+  // Generar número de recibo
+  const ts = Date.now().toString().slice(-6);
+  _reciboNum = 'REC-' + hoy.getFullYear() + '-' + ts;
+  document.getElementById('f-num').value = _reciboNum;
+
+  // Cargar afiliados desde Supabase
+  try {
+    _afiliados = await sbGet('afiliados',
+      'select=id,apellido,nombre,dni,plan_id,historia_clinica,grupo_empresa&order=apellido.asc');
+
+    // Obtener planes para mostrar nombre
+    const planes = await sbGet('planes', 'select=id,nombre,cuota_titular');
+    const planMap = {};
+    planes.forEach(p => planMap[p.id] = p);
+
+    // Enriquecer afiliados
+    _afiliados = _afiliados.map(a => ({
+      ...a,
+      plan_nombre: planMap[a.plan_id]?.nombre || '—',
+      cuota: planMap[a.plan_id]?.cuota_titular || 0,
+      nombre_completo: a.apellido + ', ' + a.nombre
+    }));
+
+    // Poblar select
+    const sel = document.getElementById('f-afiliado');
+    _afiliados.forEach(a => {
+      const opt = document.createElement('option');
+      opt.value = a.id;
+      opt.textContent = `${a.apellido}, ${a.nombre} — DNI ${a.dni}`;
+      sel.appendChild(opt);
+    });
+  } catch(e) {
+    console.warn('Error cargando afiliados:', e);
+  }
+
+  // Si viene por URL param (desde el sistema principal)
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('afiliado_id')) {
+    document.getElementById('f-afiliado').value = params.get('afiliado_id');
+    onAfiliado();
+  }
+  if (params.get('importe')) {
+    document.getElementById('f-importe').value = params.get('importe');
+  }
+  if (params.get('periodo')) {
+    document.getElementById('f-periodo').value = params.get('periodo');
+  }
+
+  renderRecibo();
+}
+
+// ─────────────────────────────────────────────
+// CUANDO SELECCIONA AFILIADO
+// ─────────────────────────────────────────────
+function onAfiliado() {
+  const id = document.getElementById('f-afiliado').value;
+  _selAf = _afiliados.find(a => a.id === id) || null;
+
+  if (_selAf) {
+    // Auto-completar importe con la cuota del plan
+    if (!document.getElementById('f-importe').value || document.getElementById('f-importe').value === '0') {
+      document.getElementById('f-importe').value = _selAf.cuota;
+    }
+  }
+  renderRecibo();
+}
+
+// ─────────────────────────────────────────────
+// RENDER DEL RECIBO
+// ─────────────────────────────────────────────
+function $n(n) {
+  return '$' + Number(n||0).toLocaleString('es-AR', {minimumFractionDigits:0, maximumFractionDigits:0});
+}
+
+function fdate(str) {
+  if (!str) return '—';
+  const d = new Date(str + 'T00:00:00');
+  return d.toLocaleDateString('es-AR', {day:'2-digit',month:'2-digit',year:'numeric'});
+}
+
+function renderRecibo() {
+  const num     = document.getElementById('f-num').value || _reciboNum;
+  const fecha   = document.getElementById('f-fecha').value;
+  const periodo = document.getElementById('f-periodo').value || 'Marzo 2026';
+  const importe = Number(document.getElementById('f-importe').value) || 0;
+  const medio   = document.getElementById('f-medio').value;
+  const comp    = document.getElementById('f-comp').value;
+  const obs     = document.getElementById('f-obs').value;
+
+  // Header
+  document.getElementById('r-num').textContent = num;
+  document.getElementById('r-fecha').textContent = fdate(fecha);
+
+  // Afiliado
+  if (_selAf) {
+    document.getElementById('r-nombre').textContent = _selAf.apellido + ', ' + _selAf.nombre;
+    document.getElementById('r-dni').textContent = 'DNI: ' + _selAf.dni;
+    document.getElementById('r-plan').textContent = _selAf.plan_nombre;
+    document.getElementById('r-hc').textContent = 'H.C.: ' + (_selAf.historia_clinica || '—');
+  } else {
+    document.getElementById('r-nombre').textContent = '— Seleccione un afiliado —';
+    document.getElementById('r-dni').textContent = 'DNI: —';
+    document.getElementById('r-plan').textContent = '—';
+    document.getElementById('r-hc').textContent = 'H.C.: —';
+  }
+
+  // Detalle
+  document.getElementById('r-periodo-td').textContent = periodo;
+  document.getElementById('r-importe-det').textContent = $n(importe);
+  document.getElementById('r-total').textContent = $n(importe);
+
+  // Concepto dinámico
+  const conceptoBase = 'Cuota mensual de afiliación';
+  const concepto = _selAf ? `${conceptoBase} — Plan ${_selAf.plan_nombre}` : conceptoBase;
+  document.getElementById('r-concepto').textContent = concepto;
+
+  // Medio y comprobante
+  document.getElementById('r-medio').textContent = medio;
+  document.getElementById('r-comp').textContent = comp || '—';
+
+  // Observaciones
+  const obsEl = document.getElementById('r-obs');
+  if (obs) {
+    obsEl.style.display = '';
+    obsEl.textContent = obs;
+  } else {
+    obsEl.style.display = 'none';
+  }
+}
+
+// ─────────────────────────────────────────────
+// GUARDAR COBRO EN SUPABASE Y EMITIR RECIBO
+// ─────────────────────────────────────────────
+async function guardarYEmitir() {
+  const afId   = document.getElementById('f-afiliado').value;
+  const imp    = Number(document.getElementById('f-importe').value);
+  const per    = document.getElementById('f-periodo').value;
+  const medio  = document.getElementById('f-medio').value;
+  const comp   = document.getElementById('f-comp').value;
+  const obs    = document.getElementById('f-obs').value;
+  const fecha  = document.getElementById('f-fecha').value;
+
+  if (!afId) { alert('Por favor seleccione un afiliado.'); return; }
+  if (!imp || imp <= 0) { alert('Por favor ingrese el importe del cobro.'); return; }
+  if (!per) { alert('Por favor ingrese el período.'); return; }
+
+  const btn = event.currentTarget;
+  btn.textContent = '⏳ Guardando...';
+  btn.disabled = true;
+
+  try {
+    // 1. Registrar cobro usando la función SQL
+    const result = await sbRpc('fn_registrar_cobro', {
+      p_afiliado_id: afId,
+      p_periodo: per,
+      p_importe: imp,
+      p_medio_pago: medio,
+      p_comprobante: comp || null
+    });
+
+    // 2. También guardar en tabla cobros con número de recibo
+    await sbPost('cobros', {
+      afiliado_id: afId,
+      empresa: null,
+      periodo: per,
+      fecha_cobro: fecha,
+      importe: imp,
+      medio_pago: medio,
+      comprobante: document.getElementById('f-num').value,
+      estado: 'acreditado',
+      notas: obs || null
+    }).catch(() => {});  // Si ya existe por el RPC, ignora
+
+    btn.textContent = '✅ Cobro Registrado';
+    btn.style.background = '#22d3a0';
+
+    // Mostrar preview lista para imprimir
+    document.getElementById('preview-wrap').scrollIntoView({ behavior: 'smooth' });
+
+    setTimeout(() => {
+      btn.textContent = '💾 Guardar Cobro y Emitir Recibo';
+      btn.disabled = false;
+      btn.style.background = '';
+    }, 3000);
+
+  } catch(e) {
+    console.error(e);
+    alert('Error al guardar el cobro. Verifique los datos.');
+    btn.textContent = '💾 Guardar Cobro y Emitir Recibo';
+    btn.disabled = false;
+  }
+}
+
+// ─────────────────────────────────────────────
+// IMPRIMIR Y DESCARGAR
+// ─────────────────────────────────────────────
+function imprimirRecibo() {
+  window.print();
+}
+
+function descargarPDF() {
+  // Usar print dialog con destino PDF (nativo en todos los browsers modernos)
+  const titulo = document.title;
+  const af = _selAf ? `${_selAf.apellido}_${_selAf.nombre}` : 'recibo';
+  const num = document.getElementById('f-num').value;
+  document.title = `Recibo_${num}_${af}`;
+  window.print();
+  setTimeout(() => { document.title = titulo; }, 1000);
+}
+
+// ─────────────────────────────────────────────
+// INICIAR
+// ─────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
