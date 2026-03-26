@@ -1,0 +1,1382 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cuidalma — Sistema de Gestión en Salud</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --teal: #2A7A6B;
+    --teal-dark: #1e5a4e;
+    --teal-light: #3d9e8b;
+    --sky: #7BB8D4;
+    --gold: #F5B830;
+    --cream: #FAF8F3;
+    --dark: #1a2e2a;
+    --gray: #6b7c79;
+    --light-gray: #e8edeb;
+    --white: #ffffff;
+    --sidebar-w: 240px;
+    --header-h: 60px;
+    --danger: #c0392b;
+    --success: #27ae60;
+    --warning: #e67e22;
+    --info: #2980b9;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'DM Sans', sans-serif; background: #f0f4f2; color: var(--dark); }
+
+  /* ─── PANTALLA DE CARGA ─── */
+  #authGuard {
+    position: fixed;
+    inset: 0;
+    background: #0f1f1c;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    flex-direction: column;
+    gap: 20px;
+    transition: opacity 0.4s;
+  }
+  #authGuard.hide { opacity: 0; pointer-events: none; }
+  .guard-logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 36px;
+    font-weight: 300;
+    color: white;
+    letter-spacing: 3px;
+  }
+  .guard-spinner {
+    width: 28px;
+    height: 28px;
+    border: 2px solid rgba(42, 122, 107, 0.3);
+    border-top-color: var(--teal-light);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ─── LAYOUT PRINCIPAL ─── */
+  #mainApp { display: none; }
+  #mainApp.show { display: flex; min-height: 100vh; }
+
+  /* ─── SIDEBAR ─── */
+  .sidebar {
+    width: var(--sidebar-w);
+    background: var(--dark);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    left: 0; top: 0; bottom: 0;
+    z-index: 100;
+    transition: transform 0.3s;
+  }
+
+  .sidebar-brand {
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+  }
+  .brand-logo-s {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 26px;
+    font-weight: 300;
+    color: white;
+    letter-spacing: 2px;
+  }
+  .brand-sub {
+    font-size: 10px;
+    color: rgba(255,255,255,0.35);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .nav-section {
+    padding: 16px 12px 8px;
+  }
+  .nav-section-label {
+    font-size: 10px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.3);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 0 8px;
+    margin-bottom: 6px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    color: rgba(255,255,255,0.6);
+    font-size: 13.5px;
+    transition: all 0.15s;
+    margin-bottom: 2px;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.9); }
+  .nav-item.active { background: var(--teal); color: white; }
+  .nav-item svg { flex-shrink: 0; opacity: 0.8; }
+  .nav-item.active svg { opacity: 1; }
+  
+  .nav-badge {
+    margin-left: auto;
+    background: var(--gold);
+    color: var(--dark);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 10px;
+    min-width: 18px;
+    text-align: center;
+  }
+
+  .sidebar-footer {
+    margin-top: auto;
+    padding: 16px 12px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+  }
+  .user-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .user-card:hover { background: rgba(255,255,255,0.06); }
+  .user-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: var(--teal);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: white;
+    flex-shrink: 0;
+  }
+  .user-info { flex: 1; min-width: 0; }
+  .user-name { font-size: 13px; color: rgba(255,255,255,0.85); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .user-role { font-size: 11px; color: rgba(255,255,255,0.35); }
+  .logout-btn {
+    background: none; border: none; cursor: pointer;
+    color: rgba(255,255,255,0.3); padding: 4px;
+    transition: color 0.15s;
+  }
+  .logout-btn:hover { color: rgba(255, 80, 80, 0.8); }
+
+  /* ─── CONTENIDO PRINCIPAL ─── */
+  .main-content {
+    margin-left: var(--sidebar-w);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  /* ─── TOPBAR ─── */
+  .topbar {
+    height: var(--header-h);
+    background: white;
+    border-bottom: 1px solid var(--light-gray);
+    display: flex;
+    align-items: center;
+    padding: 0 28px;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    gap: 16px;
+  }
+  .topbar-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--dark);
+    letter-spacing: 0.5px;
+  }
+  .topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .tb-btn {
+    background: none; border: 1px solid var(--light-gray);
+    padding: 7px 14px; border-radius: 8px;
+    font-family: 'DM Sans', sans-serif; font-size: 13px;
+    color: var(--gray); cursor: pointer; transition: all 0.15s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .tb-btn:hover { border-color: var(--teal); color: var(--teal); }
+  .tb-btn.primary { background: var(--teal); border-color: var(--teal); color: white; font-weight: 500; }
+  .tb-btn.primary:hover { background: var(--teal-dark); }
+  .tb-pill {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--gray); padding: 4px 10px;
+    background: var(--cream); border-radius: 20px;
+    border: 1px solid var(--light-gray);
+  }
+  .period-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); }
+
+  /* ─── PÁGINA (contenido) ─── */
+  .page { display: none; padding: 28px; flex: 1; }
+  .page.active { display: block; }
+
+  /* ─── CARDS ─── */
+  .card {
+    background: white;
+    border-radius: 14px;
+    padding: 24px;
+    border: 1px solid var(--light-gray);
+  }
+  .card-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--dark);
+    margin-bottom: 4px;
+  }
+  .card-sub { font-size: 13px; color: var(--gray); margin-bottom: 20px; }
+
+  /* ─── KPI GRID ─── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .kpi-card {
+    background: white;
+    border-radius: 14px;
+    padding: 20px;
+    border: 1px solid var(--light-gray);
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+  .kpi-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .kpi-card.teal::after { background: var(--teal); }
+  .kpi-card.gold::after { background: var(--gold); }
+  .kpi-card.sky::after { background: var(--sky); }
+  .kpi-card.danger::after { background: var(--danger); }
+  .kpi-label { font-size: 11px; font-weight: 500; color: var(--gray); letter-spacing: 1.2px; text-transform: uppercase; margin-bottom: 10px; }
+  .kpi-value { font-family: 'Cormorant Garamond', serif; font-size: 36px; font-weight: 500; color: var(--dark); line-height: 1; }
+  .kpi-sub { font-size: 12px; color: var(--gray); margin-top: 6px; }
+  .kpi-icon { position: absolute; top: 16px; right: 16px; opacity: 0.12; }
+
+  /* ─── TABLA ─── */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  thead th {
+    text-align: left; padding: 10px 16px;
+    font-size: 11px; font-weight: 500; color: var(--gray);
+    letter-spacing: 1px; text-transform: uppercase;
+    border-bottom: 1px solid var(--light-gray);
+    background: var(--cream);
+  }
+  tbody tr { border-bottom: 1px solid #f0f0f0; transition: background 0.1s; }
+  tbody tr:hover { background: #fafaf8; }
+  tbody td { padding: 12px 16px; color: var(--dark); }
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 500;
+  }
+  .badge-green { background: #e8f5e9; color: #2e7d32; }
+  .badge-red { background: #fdecea; color: #c62828; }
+  .badge-gold { background: #fff8e1; color: #f57c00; }
+  .badge-blue { background: #e3f2fd; color: #1565c0; }
+  .badge-gray { background: #f5f5f5; color: #616161; }
+
+  /* ─── FORM GRID ─── */
+  .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .form-grid.cols3 { grid-template-columns: repeat(3, 1fr); }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.span2 { grid-column: span 2; }
+  label { font-size: 12px; font-weight: 500; color: var(--gray); letter-spacing: 0.5px; }
+  input, select, textarea {
+    padding: 10px 12px;
+    border: 1.5px solid var(--light-gray);
+    border-radius: 8px;
+    font-family: 'DM Sans', sans-serif; font-size: 14px;
+    color: var(--dark); background: white;
+    outline: none; transition: border-color 0.2s;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(42,122,107,0.1); }
+
+  /* ─── MODAL ─── */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    z-index: 200; display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  }
+  .modal-overlay.show { opacity: 1; pointer-events: all; }
+  .modal {
+    background: white; border-radius: 16px; width: min(580px, 95vw);
+    max-height: 90vh; overflow-y: auto;
+    padding: 32px; box-shadow: 0 24px 60px rgba(0,0,0,0.2);
+    transform: translateY(20px); transition: transform 0.2s;
+  }
+  .modal-overlay.show .modal { transform: translateY(0); }
+  .modal-title { font-family: 'Cormorant Garamond', serif; font-size: 24px; font-weight: 500; margin-bottom: 4px; }
+  .modal-sub { font-size: 13px; color: var(--gray); margin-bottom: 24px; }
+  .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--light-gray); }
+
+  .btn {
+    padding: 9px 20px; border-radius: 8px; border: none;
+    font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .btn-primary { background: var(--teal); color: white; }
+  .btn-primary:hover { background: var(--teal-dark); }
+  .btn-secondary { background: var(--light-gray); color: var(--dark); }
+  .btn-secondary:hover { background: #dde4e1; }
+  .btn-danger { background: var(--danger); color: white; }
+  .btn-danger:hover { background: #a93226; }
+
+  /* ─── NOTIFY ─── */
+  #notify {
+    position: fixed; bottom: 24px; right: 24px; z-index: 999;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .notif {
+    background: white; border-radius: 10px; padding: 14px 18px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12); border-left: 4px solid var(--teal);
+    font-size: 13.5px; color: var(--dark); max-width: 340px;
+    animation: slideIn 0.3s ease; display: flex; align-items: center; gap: 10px;
+  }
+  .notif.error { border-color: var(--danger); }
+  .notif.warning { border-color: var(--warning); }
+  @keyframes slideIn { from { transform: translateX(40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  /* ─── TABS ─── */
+  .tabs { display: flex; gap: 4px; margin-bottom: 20px; background: var(--cream); padding: 4px; border-radius: 10px; width: fit-content; }
+  .tab { padding: 7px 18px; border-radius: 7px; cursor: pointer; font-size: 13px; color: var(--gray); transition: all 0.15s; }
+  .tab.active { background: white; color: var(--teal); font-weight: 500; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+
+  /* ─── LOADING ─── */
+  .loading-state { display: flex; align-items: center; gap: 10px; padding: 40px; color: var(--gray); justify-content: center; }
+  .mini-spinner { width: 18px; height: 18px; border: 2px solid var(--light-gray); border-top-color: var(--teal); border-radius: 50%; animation: spin 0.6s linear infinite; }
+
+  /* ─── SEARCH BAR ─── */
+  .search-bar {
+    position: relative; margin-bottom: 16px;
+  }
+  .search-bar input {
+    padding-left: 36px; width: 100%; max-width: 360px;
+  }
+  .search-bar svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--gray); opacity: 0.5; }
+
+  /* ─── RECIBO ─── */
+  @media print {
+    .sidebar, .topbar, .topbar-actions, #notify, .modal-footer { display: none !important; }
+    .main-content { margin-left: 0 !important; }
+  }
+
+  /* ─── RESPONSIVE ─── */
+  @media (max-width: 900px) {
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .form-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Auth Guard -->
+<div id="authGuard">
+  <div class="guard-logo">Cuidalma</div>
+  <div class="guard-spinner"></div>
+</div>
+
+<!-- App principal -->
+<div id="mainApp">
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-logo-s">Cuidalma</div>
+      <div class="brand-sub">Gestión en Salud</div>
+    </div>
+
+    <div style="overflow-y:auto; flex:1;">
+      <div class="nav-section">
+        <div class="nav-section-label">Principal</div>
+        <div class="nav-item active" onclick="showPage('dashboard')">
+          <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Dashboard
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-label">Afiliaciones</div>
+        <div class="nav-item" onclick="showPage('afiliados')">
+          <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87m-4-12a4 4 0 010 7.75"/></svg>
+          Afiliados
+        </div>
+        <div class="nav-item" onclick="showPage('planes')">
+          <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          Planes
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-label">Prestadores</div>
+        <div class="nav-item" onclick="showPage('prestadores')">
+          <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+          Prestadores
+        </div>
+        <div class="nav-item" onclick="showPage('acuerdos')">
+          <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          Acuerdos
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-label">Finanzas</div>
+        <div class="nav-item" onclick="showPage('cobros')">
+          <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+          Cobros
+        </div>
+        <div class="nav-item" onclick="showPage('cuentas')">
+          <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+          Ctas. Corrientes
+        </div>
+        <div class="nav-item" onclick="showPage('devengamiento')">
+          <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          Devengamiento
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-label">Gestión</div>
+        <div class="nav-item" onclick="showPage('crm')">
+          <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+          CRM
+        </div>
+        <div class="nav-item" onclick="showPage('informes')">
+          <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          Informes
+        </div>
+      </div>
+
+      <div class="nav-section" id="adminNav" style="display:none">
+        <div class="nav-section-label">Administración</div>
+        <div class="nav-item" onclick="showPage('usuarios')">
+          <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+          Usuarios del Sistema
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="user-card">
+        <div class="user-avatar" id="userAvatar">A</div>
+        <div class="user-info">
+          <div class="user-name" id="userName">Cargando...</div>
+          <div class="user-role" id="userRole">—</div>
+        </div>
+        <button class="logout-btn" onclick="handleLogout()" title="Cerrar sesión">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- MAIN CONTENT -->
+  <div class="main-content">
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div class="topbar-title" id="topbarTitle">Dashboard</div>
+      <div style="flex:1"></div>
+      <div class="tb-pill">
+        <span class="period-dot"></span>
+        <span id="periodoActual">Marzo 2026</span>
+      </div>
+      <div class="topbar-actions" id="topbarActions"></div>
+    </div>
+
+    <!-- PÁGINAS -->
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="kpi-grid" id="kpiGrid">
+        <div class="loading-state" style="grid-column:span 4"><div class="mini-spinner"></div><span>Cargando KPIs...</span></div>
+      </div>
+      <div style="display:grid; grid-template-columns:1.4fr 1fr; gap:16px;">
+        <div class="card">
+          <div class="card-title">Recaudación Mensual</div>
+          <div class="card-sub">Últimos meses del período</div>
+          <div id="recaudacionTable"><div class="loading-state"><div class="mini-spinner"></div></div></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Distribución de Planes</div>
+          <div class="card-sub">Afiliados por plan activo</div>
+          <div id="distPlanes"><div class="loading-state"><div class="mini-spinner"></div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AFILIADOS -->
+    <div class="page" id="page-afiliados">
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;">
+          <div>
+            <div class="card-title">Afiliados</div>
+            <div class="card-sub" id="afiliadosCount">Cargando...</div>
+          </div>
+          <button class="btn btn-primary" onclick="openModal('modalAfiliado')">+ Nuevo Afiliado</button>
+        </div>
+        <div class="search-bar">
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" id="searchAfiliado" placeholder="Buscar por nombre, DNI, plan..." oninput="filtrarAfiliados()">
+        </div>
+        <div class="table-wrap" id="afiliadosTable"><div class="loading-state"><div class="mini-spinner"></div></div></div>
+      </div>
+    </div>
+
+    <!-- PLANES -->
+    <div class="page" id="page-planes">
+      <div class="card">
+        <div class="card-title">Planes de Salud</div>
+        <div class="card-sub">Gestión de planes y cuotas vigentes</div>
+        <div class="table-wrap" id="planesTable"><div class="loading-state"><div class="mini-spinner"></div></div></div>
+      </div>
+    </div>
+
+    <!-- PRESTADORES -->
+    <div class="page" id="page-prestadores">
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;">
+          <div>
+            <div class="card-title">Prestadores</div>
+            <div class="card-sub">Red de prestadores médicos</div>
+          </div>
+          <button class="btn btn-primary" onclick="openModal('modalPrestador')">+ Nuevo Prestador</button>
+        </div>
+        <div class="table-wrap" id="prestadoresTable"><div class="loading-state"><div class="mini-spinner"></div></div></div>
+      </div>
+    </div>
+
+    <!-- ACUERDOS -->
+    <div class="page" id="page-acuerdos">
+      <div class="card">
+        <div class="card-title">Acuerdos con Prestadores</div>
+        <div class="card-sub">Contratos y condiciones pactadas</div>
+        <div class="table-wrap" id="acuerdosTable"><div class="loading-state"><div class="mini-spinner"></div></div></div>
+      </div>
+    </div>
+
+    <!-- COBROS -->
+    <div class="page" id="page-cobros">
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;">
+          <div>
+            <div class="card-title">Cobros</div>
+            <div class="card-sub">Registro de pagos recibidos</div>
+          </div>
+          <button class="btn btn-primary" onclick="openModal('modalCobro')">+ Registrar Cobro</button>
+        </div>
+        <div class="table-wrap" id="cobrosTable"><div class="loading-state"><div class="mini-spinner"></div></div></div>
+      </div>
+    </div>
+
+    <!-- CUENTAS CORRIENTES -->
+    <div class="page" id="page-cuentas">
+      <div class="card">
+        <div class="card-title">Cuentas Corrientes</div>
+        <div class="card-sub">Saldos y movimientos por afiliado</div>
+        <div class="table-wrap" id="cuentasTable"><div class="loading-state"><div class="mini-spinner"></div></div></div>
+      </div>
+    </div>
+
+    <!-- DEVENGAMIENTO -->
+    <div class="page" id="page-devengamiento">
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title">Devengamiento Mensual</div>
+        <div class="card-sub">Procesamiento de cargos del período</div>
+        <div style="display:grid; grid-template-columns: repeat(3,auto); gap:10px; width:fit-content; margin-top:16px;">
+          <select id="devAnio" style="width:120px">
+            <option value="2026" selected>2026</option>
+            <option value="2025">2025</option>
+          </select>
+          <select id="devMes" style="width:140px">
+            <option value="1">Enero</option><option value="2">Febrero</option>
+            <option value="3" selected>Marzo</option><option value="4">Abril</option>
+            <option value="5">Mayo</option><option value="6">Junio</option>
+            <option value="7">Julio</option><option value="8">Agosto</option>
+            <option value="9">Septiembre</option><option value="10">Octubre</option>
+            <option value="11">Noviembre</option><option value="12">Diciembre</option>
+          </select>
+          <button class="btn btn-primary" onclick="procesarDevengamiento()">▶ Procesar Devengamiento</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Historial de Devengamientos</div>
+        <div class="table-wrap" id="devengamientoTable"><div class="loading-state"><div class="mini-spinner"></div></div></div>
+      </div>
+    </div>
+
+    <!-- CRM -->
+    <div class="page" id="page-crm">
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;">
+          <div>
+            <div class="card-title">CRM — Gestiones</div>
+            <div class="card-sub">Seguimiento de afiliados</div>
+          </div>
+          <button class="btn btn-primary" onclick="openModal('modalCRM')">+ Nueva Gestión</button>
+        </div>
+        <div class="table-wrap" id="crmTable"><div class="loading-state"><div class="mini-spinner"></div></div></div>
+      </div>
+    </div>
+
+    <!-- INFORMES -->
+    <div class="page" id="page-informes">
+      <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:16px;">
+        <div class="card" style="cursor:pointer;" onclick="generarInforme('morosos')">
+          <div class="card-title">📋 Informe de Morosos</div>
+          <div class="card-sub">Afiliados con saldo deudor</div>
+        </div>
+        <div class="card" style="cursor:pointer;" onclick="generarInforme('recaudacion')">
+          <div class="card-title">💰 Recaudación por Plan</div>
+          <div class="card-sub">Ingresos discriminados por plan</div>
+        </div>
+        <div class="card" style="cursor:pointer;" onclick="generarInforme('afiliados')">
+          <div class="card-title">👥 Padrón de Afiliados</div>
+          <div class="card-sub">Listado completo con estado</div>
+        </div>
+        <div class="card" style="cursor:pointer;" onclick="generarInforme('prestadores')">
+          <div class="card-title">🏥 Resumen de Prestadores</div>
+          <div class="card-sub">Red médica por especialidad</div>
+        </div>
+      </div>
+      <div id="informeResult" class="card" style="margin-top:16px; display:none;">
+        <div class="card-title" id="informeTitle"></div>
+        <div class="table-wrap" id="informeTable"></div>
+      </div>
+    </div>
+
+    <!-- USUARIOS -->
+    <div class="page" id="page-usuarios">
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;">
+          <div>
+            <div class="card-title">Usuarios del Sistema</div>
+            <div class="card-sub">Control de acceso y permisos</div>
+          </div>
+          <button class="btn btn-primary" onclick="openModal('modalUsuario')">+ Nuevo Usuario</button>
+        </div>
+        <div class="table-wrap" id="usuariosTable"><div class="loading-state"><div class="mini-spinner"></div></div></div>
+      </div>
+    </div>
+
+  </div><!-- /main-content -->
+</div><!-- /mainApp -->
+
+<!-- MODALES -->
+<!-- Modal Afiliado -->
+<div class="modal-overlay" id="modalAfiliado">
+  <div class="modal">
+    <div class="modal-title">Nuevo Afiliado</div>
+    <div class="modal-sub">Complete los datos del afiliado</div>
+    <div class="form-grid">
+      <div class="form-group"><label>Nombre *</label><input id="af_nombre" placeholder="Nombre"></div>
+      <div class="form-group"><label>Apellido *</label><input id="af_apellido" placeholder="Apellido"></div>
+      <div class="form-group"><label>DNI *</label><input id="af_dni" placeholder="00.000.000"></div>
+      <div class="form-group"><label>Fecha de Nacimiento</label><input id="af_fnac" type="date"></div>
+      <div class="form-group"><label>Teléfono</label><input id="af_tel" placeholder="+54 381..."></div>
+      <div class="form-group"><label>Email</label><input id="af_email" type="email" placeholder="email@ejemplo.com"></div>
+      <div class="form-group"><label>Plan *</label>
+        <select id="af_plan">
+          <option value="">Seleccionar plan...</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Grupo Familiar</label>
+        <select id="af_grupo">
+          <option value="">Sin grupo / Titular</option>
+        </select>
+      </div>
+      <div class="form-group span2"><label>Dirección</label><input id="af_dir" placeholder="Calle, número, ciudad"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modalAfiliado')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarAfiliado()">Guardar Afiliado</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Cobro -->
+<div class="modal-overlay" id="modalCobro">
+  <div class="modal">
+    <div class="modal-title">Registrar Cobro</div>
+    <div class="modal-sub">Ingrese los datos del pago recibido</div>
+    <div class="form-grid">
+      <div class="form-group span2"><label>Afiliado *</label>
+        <select id="co_afiliado"><option value="">Seleccionar afiliado...</option></select>
+      </div>
+      <div class="form-group"><label>Monto *</label><input id="co_monto" type="number" placeholder="0.00" step="0.01"></div>
+      <div class="form-group"><label>Fecha *</label><input id="co_fecha" type="date"></div>
+      <div class="form-group"><label>Período (mes)</label><input id="co_mes" type="number" placeholder="3" min="1" max="12" value="3"></div>
+      <div class="form-group"><label>Período (año)</label><input id="co_anio" type="number" placeholder="2026" value="2026"></div>
+      <div class="form-group span2"><label>Observaciones</label><input id="co_obs" placeholder="Opcional"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modalCobro')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarCobro()">Registrar Cobro</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Prestador -->
+<div class="modal-overlay" id="modalPrestador">
+  <div class="modal">
+    <div class="modal-title">Nuevo Prestador</div>
+    <div class="modal-sub">Datos del prestador médico</div>
+    <div class="form-grid">
+      <div class="form-group span2"><label>Nombre / Razón Social *</label><input id="pr_nombre" placeholder="Dr. / Clínica / Laboratorio"></div>
+      <div class="form-group"><label>Especialidad *</label><input id="pr_esp" placeholder="Clínica General, Odontología..."></div>
+      <div class="form-group"><label>CUIT</label><input id="pr_cuit" placeholder="20-00000000-0"></div>
+      <div class="form-group"><label>Teléfono</label><input id="pr_tel" placeholder="+54 381..."></div>
+      <div class="form-group"><label>Email</label><input id="pr_email" type="email"></div>
+      <div class="form-group span2"><label>Dirección</label><input id="pr_dir"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modalPrestador')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarPrestador()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal CRM -->
+<div class="modal-overlay" id="modalCRM">
+  <div class="modal">
+    <div class="modal-title">Nueva Gestión CRM</div>
+    <div class="modal-sub">Registro de contacto con afiliado</div>
+    <div class="form-grid">
+      <div class="form-group span2"><label>Afiliado *</label>
+        <select id="crm_afiliado"><option value="">Seleccionar afiliado...</option></select>
+      </div>
+      <div class="form-group"><label>Tipo *</label>
+        <select id="crm_tipo">
+          <option value="consulta">Consulta</option>
+          <option value="reclamo">Reclamo</option>
+          <option value="baja">Solicitud de Baja</option>
+          <option value="modificacion">Modificación</option>
+          <option value="informacion">Información</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Estado</label>
+        <select id="crm_estado">
+          <option value="abierto">Abierto</option>
+          <option value="en_proceso">En Proceso</option>
+          <option value="cerrado">Cerrado</option>
+        </select>
+      </div>
+      <div class="form-group span2"><label>Descripción *</label>
+        <textarea id="crm_desc" rows="3" placeholder="Detalle de la gestión..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modalCRM')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarCRM()">Guardar Gestión</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Usuario -->
+<div class="modal-overlay" id="modalUsuario">
+  <div class="modal">
+    <div class="modal-title">Nuevo Usuario del Sistema</div>
+    <div class="modal-sub">Crear acceso al sistema</div>
+    <div class="form-grid">
+      <div class="form-group"><label>Nombre *</label><input id="us_nombre" placeholder="Nombre"></div>
+      <div class="form-group"><label>Apellido *</label><input id="us_apellido" placeholder="Apellido"></div>
+      <div class="form-group span2"><label>Email *</label><input id="us_email" type="email" placeholder="usuario@cuidalma.com"></div>
+      <div class="form-group"><label>Contraseña *</label><input id="us_pass" type="password" placeholder="Mínimo 8 caracteres"></div>
+      <div class="form-group"><label>Rol *</label>
+        <select id="us_rol">
+          <option value="operador">Operador</option>
+          <option value="supervisor">Supervisor</option>
+          <option value="admin">Administrador</option>
+          <option value="readonly">Solo Lectura</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modalUsuario')">Cancelar</button>
+      <button class="btn btn-primary" onclick="crearUsuario()">Crear Usuario</button>
+    </div>
+  </div>
+</div>
+
+<!-- Notificaciones -->
+<div id="notify"></div>
+
+<script>
+const SUPABASE_URL = 'https://biaxzvhoolbvjkbuodlv.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_fzEhU20w8JwokhxBhQshgQ_QP9L7wTM';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentUser = null;
+let currentProfile = null;
+let allAfiliados = [];
+
+// ═══════════════════════════════════════════
+//  AUTH GUARD
+// ═══════════════════════════════════════════
+async function initAuth() {
+  const { data: { session } } = await sb.auth.getSession();
+
+  if (!session) {
+    window.location.href = 'login.html';
+    return;
+  }
+
+  currentUser = session.user;
+
+  // Cargar perfil
+  const { data: profile } = await sb.from('user_profiles').select('*').eq('id', currentUser.id).single();
+  currentProfile = profile;
+
+  if (profile) {
+    const initiales = (profile.nombre[0] + profile.apellido[0]).toUpperCase();
+    document.getElementById('userAvatar').textContent = initiales;
+    document.getElementById('userName').textContent = profile.nombre + ' ' + profile.apellido;
+    const rolLabels = { admin: 'Administrador', supervisor: 'Supervisor', operador: 'Operador', readonly: 'Solo Lectura' };
+    document.getElementById('userRole').textContent = rolLabels[profile.rol] || profile.rol;
+
+    if (profile.rol === 'admin') {
+      document.getElementById('adminNav').style.display = 'block';
+    }
+  }
+
+  // Mostrar app
+  const guard = document.getElementById('authGuard');
+  guard.classList.add('hide');
+  setTimeout(() => guard.style.display = 'none', 400);
+  document.getElementById('mainApp').classList.add('show');
+
+  // Actualizar último acceso
+  await sb.from('user_profiles').update({ ultimo_acceso: new Date().toISOString() }).eq('id', currentUser.id);
+
+  // Cargar datos iniciales
+  loadDashboard();
+}
+
+async function handleLogout() {
+  await sb.auth.signOut();
+  window.location.href = 'login.html';
+}
+
+// Escuchar cambios de sesión
+sb.auth.onAuthStateChange((event, session) => {
+  if (event === 'SIGNED_OUT') {
+    window.location.href = 'login.html';
+  }
+});
+
+// ═══════════════════════════════════════════
+//  NAVEGACIÓN
+// ═══════════════════════════════════════════
+const pageTitles = {
+  dashboard: 'Dashboard', afiliados: 'Afiliados', planes: 'Planes',
+  prestadores: 'Prestadores', acuerdos: 'Acuerdos', cobros: 'Cobros',
+  cuentas: 'Cuentas Corrientes', devengamiento: 'Devengamiento',
+  crm: 'CRM — Gestiones', informes: 'Informes', usuarios: 'Usuarios del Sistema'
+};
+
+const pageActions = {};
+
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.getAttribute('onclick') === `showPage('${id}')`) n.classList.add('active');
+  });
+  document.getElementById('topbarTitle').textContent = pageTitles[id] || id;
+  document.getElementById('topbarActions').innerHTML = '';
+
+  // Cargar datos según página
+  const loaders = {
+    afiliados: loadAfiliados,
+    planes: loadPlanes,
+    prestadores: loadPrestadores,
+    acuerdos: loadAcuerdos,
+    cobros: loadCobros,
+    cuentas: loadCuentas,
+    devengamiento: loadDevengamiento,
+    crm: loadCRM,
+    usuarios: loadUsuarios,
+  };
+  if (loaders[id]) loaders[id]();
+}
+
+// ═══════════════════════════════════════════
+//  UTILIDADES
+// ═══════════════════════════════════════════
+function fmt(n) { return Number(n || 0).toLocaleString('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }); }
+function fmtDate(d) { if (!d) return '—'; return new Date(d).toLocaleDateString('es-AR'); }
+
+function notify(msg, type = 'success') {
+  const el = document.createElement('div');
+  el.className = 'notif' + (type === 'error' ? ' error' : type === 'warning' ? ' warning' : '');
+  const icons = { success: '✓', error: '✗', warning: '⚠' };
+  el.innerHTML = `<span>${icons[type] || '✓'}</span><span>${msg}</span>`;
+  document.getElementById('notify').appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+// Cerrar modales con click afuera
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.classList.remove('show');
+  });
+});
+
+// ═══════════════════════════════════════════
+//  DASHBOARD
+// ═══════════════════════════════════════════
+async function loadDashboard() {
+  // KPIs
+  const { data: kpis } = await sb.from('vw_dashboard_kpis').select('*').single();
+
+  if (kpis) {
+    document.getElementById('kpiGrid').innerHTML = `
+      <div class="kpi-card teal">
+        <div class="kpi-label">Total Afiliados</div>
+        <div class="kpi-value">${kpis.total_afiliados || 0}</div>
+        <div class="kpi-sub">Padrón activo</div>
+        <div class="kpi-icon"><svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87m-4-12a4 4 0 010 7.75"/></svg></div>
+      </div>
+      <div class="kpi-card gold">
+        <div class="kpi-label">Recaudado</div>
+        <div class="kpi-value" style="font-size:26px">${fmt(kpis.total_cobrado_mes)}</div>
+        <div class="kpi-sub">Período actual</div>
+        <div class="kpi-icon"><svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
+      </div>
+      <div class="kpi-card sky">
+        <div class="kpi-label">Prestadores</div>
+        <div class="kpi-value">${kpis.total_prestadores || 0}</div>
+        <div class="kpi-sub">Red médica activa</div>
+        <div class="kpi-icon"><svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1"><path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16"/></svg></div>
+      </div>
+      <div class="kpi-card danger">
+        <div class="kpi-label">Morosos</div>
+        <div class="kpi-value">${kpis.total_morosos || 0}</div>
+        <div class="kpi-sub">Con saldo deudor</div>
+        <div class="kpi-icon"><svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg></div>
+      </div>
+    `;
+  }
+
+  // Distribución de planes
+  const { data: dist } = await sb.from('vw_distribucion_planes').select('*');
+  if (dist) {
+    const colors = ['var(--teal)', 'var(--sky)', 'var(--gold)', '#9b59b6', '#e74c3c'];
+    const total = dist.reduce((s, d) => s + (d.cantidad || 0), 0);
+    document.getElementById('distPlanes').innerHTML = dist.map((p, i) => `
+      <div style="margin-bottom:14px;">
+        <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:5px;">
+          <span style="font-weight:500; color:var(--dark)">${p.nombre}</span>
+          <span style="color:var(--gray)">${p.cantidad} afl. · ${fmt(p.valor_cuota)}</span>
+        </div>
+        <div style="background:var(--light-gray); border-radius:4px; height:8px; overflow:hidden;">
+          <div style="background:${colors[i]}; width:${total ? (p.cantidad/total*100).toFixed(1) : 0}%; height:100%; border-radius:4px; transition:width 0.6s ease;"></div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // Recaudación mensual
+  const { data: recaud } = await sb.from('vw_recaudacion_mensual').select('*').limit(6);
+  if (recaud && recaud.length > 0) {
+    document.getElementById('recaudacionTable').innerHTML = `
+      <table>
+        <thead><tr><th>Período</th><th>Cobros</th><th>Total</th></tr></thead>
+        <tbody>${recaud.map(r => `
+          <tr>
+            <td>${r.periodo || (r.mes + '/' + r.anio)}</td>
+            <td>${r.cantidad_cobros || '—'}</td>
+            <td style="font-weight:500; color:var(--teal)">${fmt(r.total_cobrado)}</td>
+          </tr>
+        `).join('')}</tbody>
+      </table>`;
+  } else {
+    document.getElementById('recaudacionTable').innerHTML = '<div style="padding:20px; text-align:center; color:var(--gray); font-size:13px;">Sin datos de recaudación aún</div>';
+  }
+}
+
+// ═══════════════════════════════════════════
+//  AFILIADOS
+// ═══════════════════════════════════════════
+async function loadAfiliados() {
+  const { data, count } = await sb.from('vw_afiliados').select('*', { count: 'exact' });
+  allAfiliados = data || [];
+  document.getElementById('afiliadosCount').textContent = `${count || 0} afiliados registrados`;
+  renderAfiliados(allAfiliados);
+  // Cargar planes para el modal
+  const { data: planes } = await sb.from('planes').select('id, nombre').order('nombre');
+  const sel = document.getElementById('af_plan');
+  sel.innerHTML = '<option value="">Seleccionar plan...</option>' + (planes || []).map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
+}
+
+function renderAfiliados(list) {
+  document.getElementById('afiliadosTable').innerHTML = `
+    <table>
+      <thead><tr><th>Apellido y Nombre</th><th>DNI</th><th>Plan</th><th>Estado</th><th>Teléfono</th></tr></thead>
+      <tbody>${list.map(a => `
+        <tr>
+          <td style="font-weight:500">${a.apellido || ''}, ${a.nombre || ''}</td>
+          <td>${a.dni || '—'}</td>
+          <td>${a.plan_nombre || '—'}</td>
+          <td><span class="badge ${a.activo ? 'badge-green' : 'badge-red'}">${a.activo ? 'Activo' : 'Inactivo'}</span></td>
+          <td>${a.telefono || '—'}</td>
+        </tr>
+      `).join('')}</tbody>
+    </table>`;
+}
+
+function filtrarAfiliados() {
+  const q = document.getElementById('searchAfiliado').value.toLowerCase();
+  renderAfiliados(allAfiliados.filter(a =>
+    `${a.nombre} ${a.apellido} ${a.dni} ${a.plan_nombre}`.toLowerCase().includes(q)
+  ));
+}
+
+async function guardarAfiliado() {
+  const nombre = document.getElementById('af_nombre').value.trim();
+  const apellido = document.getElementById('af_apellido').value.trim();
+  const dni = document.getElementById('af_dni').value.trim();
+  const plan_id = document.getElementById('af_plan').value;
+
+  if (!nombre || !apellido || !dni || !plan_id) {
+    notify('Complete los campos obligatorios', 'error'); return;
+  }
+
+  const { error } = await sb.from('afiliados').insert({
+    nombre, apellido, dni,
+    fecha_nacimiento: document.getElementById('af_fnac').value || null,
+    telefono: document.getElementById('af_tel').value || null,
+    email: document.getElementById('af_email').value || null,
+    plan_id, activo: true
+  });
+
+  if (error) { notify('Error: ' + error.message, 'error'); return; }
+  notify('Afiliado registrado correctamente');
+  closeModal('modalAfiliado');
+  loadAfiliados();
+}
+
+// ═══════════════════════════════════════════
+//  PLANES
+// ═══════════════════════════════════════════
+async function loadPlanes() {
+  const { data } = await sb.from('planes').select('*').order('nombre');
+  document.getElementById('planesTable').innerHTML = `
+    <table>
+      <thead><tr><th>Plan</th><th>Valor Cuota</th><th>Cobertura</th><th>Estado</th></tr></thead>
+      <tbody>${(data || []).map(p => `
+        <tr>
+          <td style="font-weight:600; color:var(--teal)">${p.nombre}</td>
+          <td style="font-weight:500">${fmt(p.valor_cuota)}</td>
+          <td>${p.cobertura || '—'}</td>
+          <td><span class="badge ${p.activo !== false ? 'badge-green' : 'badge-gray'}">${p.activo !== false ? 'Vigente' : 'Inactivo'}</span></td>
+        </tr>
+      `).join('')}</tbody>
+    </table>`;
+}
+
+// ═══════════════════════════════════════════
+//  PRESTADORES
+// ═══════════════════════════════════════════
+async function loadPrestadores() {
+  const { data } = await sb.from('prestadores').select('*').order('nombre');
+  document.getElementById('prestadoresTable').innerHTML = `
+    <table>
+      <thead><tr><th>Nombre</th><th>Especialidad</th><th>Teléfono</th><th>Estado</th></tr></thead>
+      <tbody>${(data || []).map(p => `
+        <tr>
+          <td style="font-weight:500">${p.nombre}</td>
+          <td>${p.especialidad || '—'}</td>
+          <td>${p.telefono || '—'}</td>
+          <td><span class="badge badge-green">Activo</span></td>
+        </tr>
+      `).join('')}</tbody>
+    </table>`;
+}
+
+async function guardarPrestador() {
+  const nombre = document.getElementById('pr_nombre').value.trim();
+  const especialidad = document.getElementById('pr_esp').value.trim();
+  if (!nombre || !especialidad) { notify('Complete nombre y especialidad', 'error'); return; }
+  const { error } = await sb.from('prestadores').insert({
+    nombre, especialidad,
+    cuit: document.getElementById('pr_cuit').value || null,
+    telefono: document.getElementById('pr_tel').value || null,
+    email: document.getElementById('pr_email').value || null,
+    activo: true
+  });
+  if (error) { notify('Error: ' + error.message, 'error'); return; }
+  notify('Prestador registrado');
+  closeModal('modalPrestador');
+  loadPrestadores();
+}
+
+// ═══════════════════════════════════════════
+//  ACUERDOS
+// ═══════════════════════════════════════════
+async function loadAcuerdos() {
+  const { data } = await sb.from('v_acuerdos').select('*');
+  document.getElementById('acuerdosTable').innerHTML = `
+    <table>
+      <thead><tr><th>Prestador</th><th>Descripción</th><th>Porcentaje</th><th>Vigencia Desde</th><th>Estado</th></tr></thead>
+      <tbody>${(data || []).map(a => `
+        <tr>
+          <td style="font-weight:500">${a.prestador_nombre || '—'}</td>
+          <td>${a.descripcion || '—'}</td>
+          <td>${a.porcentaje_cobertura ? a.porcentaje_cobertura + '%' : '—'}</td>
+          <td>${fmtDate(a.fecha_inicio)}</td>
+          <td><span class="badge ${a.activo ? 'badge-green' : 'badge-gray'}">${a.activo ? 'Vigente' : 'Vencido'}</span></td>
+        </tr>
+      `).join('')}</tbody>
+    </table>`;
+}
+
+// ═══════════════════════════════════════════
+//  COBROS
+// ═══════════════════════════════════════════
+async function loadCobros() {
+  const { data } = await sb.from('cobros').select('*, afiliados(nombre, apellido)').order('fecha', { ascending: false }).limit(50);
+  document.getElementById('cobrosTable').innerHTML = `
+    <table>
+      <thead><tr><th>Fecha</th><th>Afiliado</th><th>Monto</th><th>Período</th></tr></thead>
+      <tbody>${(data || []).map(c => `
+        <tr>
+          <td>${fmtDate(c.fecha)}</td>
+          <td style="font-weight:500">${c.afiliados ? c.afiliados.apellido + ', ' + c.afiliados.nombre : '—'}</td>
+          <td style="color:var(--success); font-weight:500">${fmt(c.monto)}</td>
+          <td>${c.mes_periodo || '—'}/${c.anio_periodo || '—'}</td>
+        </tr>
+      `).join('')}</tbody>
+    </table>`;
+  // Cargar afiliados para modal
+  const { data: afs } = await sb.from('afiliados').select('id, nombre, apellido').eq('activo', true).order('apellido');
+  const sel = document.getElementById('co_afiliado');
+  sel.innerHTML = '<option value="">Seleccionar afiliado...</option>' + (afs || []).map(a => `<option value="${a.id}">${a.apellido}, ${a.nombre}</option>`).join('');
+  document.getElementById('co_fecha').value = new Date().toISOString().split('T')[0];
+}
+
+async function guardarCobro() {
+  const af_id = document.getElementById('co_afiliado').value;
+  const monto = parseFloat(document.getElementById('co_monto').value);
+  const fecha = document.getElementById('co_fecha').value;
+  if (!af_id || !monto || !fecha) { notify('Complete los campos obligatorios', 'error'); return; }
+
+  const { error } = await sb.rpc('fn_registrar_cobro', {
+    p_afiliado_id: af_id,
+    p_monto: monto,
+    p_fecha: fecha,
+    p_mes: parseInt(document.getElementById('co_mes').value),
+    p_anio: parseInt(document.getElementById('co_anio').value),
+    p_observaciones: document.getElementById('co_obs').value || null
+  });
+  if (error) {
+    // Fallback directo
+    const { error: e2 } = await sb.from('cobros').insert({
+      afiliado_id: af_id, monto, fecha,
+      mes_periodo: parseInt(document.getElementById('co_mes').value),
+      anio_periodo: parseInt(document.getElementById('co_anio').value),
+      observaciones: document.getElementById('co_obs').value || null
+    });
+    if (e2) { notify('Error: ' + e2.message, 'error'); return; }
+  }
+  notify('Cobro registrado correctamente');
+  closeModal('modalCobro');
+  loadCobros();
+}
+
+// ═══════════════════════════════════════════
+//  CUENTAS CORRIENTES
+// ═══════════════════════════════════════════
+async function loadCuentas() {
+  const { data } = await sb.from('vw_saldos').select('*').order('saldo_actual');
+  document.getElementById('cuentasTable').innerHTML = `
+    <table>
+      <thead><tr><th>Afiliado</th><th>Plan</th><th>Debe</th><th>Haber</th><th>Saldo</th><th>Estado</th></tr></thead>
+      <tbody>${(data || []).map(c => `
+        <tr>
+          <td style="font-weight:500">${c.apellido || ''}, ${c.nombre || ''}</td>
+          <td>${c.plan_nombre || '—'}</td>
+          <td style="color:var(--danger)">${fmt(c.total_debe)}</td>
+          <td style="color:var(--success)">${fmt(c.total_haber)}</td>
+          <td style="font-weight:600; color:${(c.saldo_actual || 0) > 0 ? 'var(--danger)' : 'var(--success)'}">${fmt(c.saldo_actual)}</td>
+          <td><span class="badge ${(c.saldo_actual || 0) > 0 ? 'badge-red' : 'badge-green'}">${(c.saldo_actual || 0) > 0 ? 'Deudor' : 'Al día'}</span></td>
+        </tr>
+      `).join('')}</tbody>
+    </table>`;
+}
+
+// ═══════════════════════════════════════════
+//  DEVENGAMIENTO
+// ═══════════════════════════════════════════
+async function loadDevengamiento() {
+  const { data } = await sb.from('devengamientos').select('*, afiliados(nombre, apellido)').order('fecha_procesado', { ascending: false }).limit(50);
+  document.getElementById('devengamientoTable').innerHTML = `
+    <table>
+      <thead><tr><th>Afiliado</th><th>Período</th><th>Monto</th><th>Procesado</th></tr></thead>
+      <tbody>${(data || []).map(d => `
+        <tr>
+          <td style="font-weight:500">${d.afiliados ? d.afiliados.apellido + ', ' + d.afiliados.nombre : '—'}</td>
+          <td>${d.mes_periodo}/${d.anio_periodo}</td>
+          <td style="font-weight:500">${fmt(d.monto)}</td>
+          <td>${fmtDate(d.fecha_procesado)}</td>
+        </tr>
+      `).join('')}</tbody>
+    </table>`;
+}
+
+async function procesarDevengamiento() {
+  const mes = parseInt(document.getElementById('devMes').value);
+  const anio = parseInt(document.getElementById('devAnio').value);
+
+  if (!confirm(`¿Procesar devengamiento para ${mes}/${anio}? Esta acción aplicará cargos a todos los afiliados activos.`)) return;
+
+  const { error } = await sb.rpc('fn_procesar_devengamiento', { p_mes: mes, p_anio: anio });
+  if (error) { notify('Error al procesar: ' + error.message, 'error'); return; }
+  notify(`Devengamiento ${mes}/${anio} procesado correctamente`);
+  loadDevengamiento();
+}
+
+// ═══════════════════════════════════════════
+//  CRM
+// ═══════════════════════════════════════════
+async function loadCRM() {
+  const { data } = await sb.from('crm_gestiones').select('*, afiliados(nombre, apellido)').order('created_at', { ascending: false }).limit(50);
+  document.getElementById('crmTable').innerHTML = `
+    <table>
+      <thead><tr><th>Afiliado</th><th>Tipo</th><th>Estado</th><th>Descripción</th><th>Fecha</th></tr></thead>
+      <tbody>${(data || []).map(c => `
+        <tr>
+          <td style="font-weight:500">${c.afiliados ? c.afiliados.apellido + ', ' + c.afiliados.nombre : '—'}</td>
+          <td><span class="badge badge-blue">${c.tipo || '—'}</span></td>
+          <td><span class="badge ${c.estado === 'cerrado' ? 'badge-gray' : c.estado === 'abierto' ? 'badge-red' : 'badge-gold'}">${c.estado || '—'}</span></td>
+          <td style="max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${c.descripcion || '—'}</td>
+          <td>${fmtDate(c.created_at)}</td>
+        </tr>
+      `).join('')}</tbody>
+    </table>`;
+  // Poblar select afiliados
+  const { data: afs } = await sb.from('afiliados').select('id, nombre, apellido').eq('activo', true).order('apellido');
+  const sel = document.getElementById('crm_afiliado');
+  sel.innerHTML = '<option value="">Seleccionar afiliado...</option>' + (afs || []).map(a => `<option value="${a.id}">${a.apellido}, ${a.nombre}</option>`).join('');
+}
+
+async function guardarCRM() {
+  const af_id = document.getElementById('crm_afiliado').value;
+  const tipo = document.getElementById('crm_tipo').value;
+  const estado = document.getElementById('crm_estado').value;
+  const descripcion = document.getElementById('crm_desc').value.trim();
+  if (!af_id || !descripcion) { notify('Complete los campos obligatorios', 'error'); return; }
+  const { error } = await sb.from('crm_gestiones').insert({ afiliado_id: af_id, tipo, estado, descripcion });
+  if (error) { notify('Error: ' + error.message, 'error'); return; }
+  notify('Gestión CRM registrada');
+  closeModal('modalCRM');
+  loadCRM();
+}
+
+// ═══════════════════════════════════════════
+//  INFORMES
+// ═══════════════════════════════════════════
+async function generarInforme(tipo) {
+  document.getElementById('informeResult').style.display = 'block';
+  document.getElementById('informeTitle').textContent = { morosos: '📋 Afiliados con Saldo Deudor', recaudacion: '💰 Recaudación por Plan', afiliados: '👥 Padrón de Afiliados', prestadores: '🏥 Resumen de Prestadores' }[tipo];
+  document.getElementById('informeTable').innerHTML = '<div class="loading-state"><div class="mini-spinner"></div></div>';
+
+  let html = '';
+  if (tipo === 'morosos') {
+    const { data } = await sb.from('vw_saldos').select('*').gt('saldo_actual', 0).order('saldo_actual', { ascending: false });
+    html = `<table><thead><tr><th>Afiliado</th><th>Plan</th><th>Saldo Deudor</th></tr></thead><tbody>${(data||[]).map(r=>`<tr><td style="font-weight:500">${r.apellido}, ${r.nombre}</td><td>${r.plan_nombre||'—'}</td><td style="color:var(--danger);font-weight:600">${fmt(r.saldo_actual)}</td></tr>`).join('')}</tbody></table>`;
+  } else if (tipo === 'afiliados') {
+    const { data } = await sb.from('vw_afiliados').select('*').order('apellido');
+    html = `<table><thead><tr><th>Afiliado</th><th>DNI</th><th>Plan</th><th>Estado</th></tr></thead><tbody>${(data||[]).map(r=>`<tr><td style="font-weight:500">${r.apellido}, ${r.nombre}</td><td>${r.dni||'—'}</td><td>${r.plan_nombre||'—'}</td><td><span class="badge ${r.activo?'badge-green':'badge-red'}">${r.activo?'Activo':'Inactivo'}</span></td></tr>`).join('')}</tbody></table>`;
+  } else if (tipo === 'prestadores') {
+    const { data } = await sb.from('prestadores').select('*').order('especialidad');
+    html = `<table><thead><tr><th>Nombre</th><th>Especialidad</th><th>Teléfono</th></tr></thead><tbody>${(data||[]).map(r=>`<tr><td style="font-weight:500">${r.nombre}</td><td>${r.especialidad||'—'}</td><td>${r.telefono||'—'}</td></tr>`).join('')}</tbody></table>`;
+  } else if (tipo === 'recaudacion') {
+    const { data } = await sb.from('vw_recaudacion_mensual').select('*').limit(12);
+    html = `<table><thead><tr><th>Período</th><th>Cobros</th><th>Total</th></tr></thead><tbody>${(data||[]).map(r=>`<tr><td>${r.periodo||r.mes+'/'+r.anio}</td><td>${r.cantidad_cobros||'—'}</td><td style="font-weight:600;color:var(--teal)">${fmt(r.total_cobrado)}</td></tr>`).join('')}</tbody></table>`;
+  }
+  document.getElementById('informeTable').innerHTML = html || '<div style="padding:20px;text-align:center;color:var(--gray)">Sin datos disponibles</div>';
+}
+
+// ═══════════════════════════════════════════
+//  USUARIOS DEL SISTEMA
+// ═══════════════════════════════════════════
+async function loadUsuarios() {
+  const { data } = await sb.from('user_profiles').select('*, auth_email:id').order('nombre');
+  // Obtener emails por separado ya que user_profiles no tiene email directamente
+  document.getElementById('usuariosTable').innerHTML = `
+    <table>
+      <thead><tr><th>Nombre</th><th>Rol</th><th>Estado</th><th>Último Acceso</th></tr></thead>
+      <tbody>${(data||[]).map(u => `
+        <tr>
+          <td style="font-weight:500">${u.nombre} ${u.apellido}</td>
+          <td><span class="badge ${u.rol==='admin'?'badge-red':u.rol==='supervisor'?'badge-gold':'badge-blue'}">${u.rol}</span></td>
+          <td><span class="badge ${u.activo?'badge-green':'badge-gray'}">${u.activo?'Activo':'Inactivo'}</span></td>
+          <td>${u.ultimo_acceso ? fmtDate(u.ultimo_acceso) : 'Nunca'}</td>
+        </tr>
+      `).join('')}</tbody>
+    </table>`;
+}
+
+async function crearUsuario() {
+  const nombre = document.getElementById('us_nombre').value.trim();
+  const apellido = document.getElementById('us_apellido').value.trim();
+  const email = document.getElementById('us_email').value.trim();
+  const password = document.getElementById('us_pass').value;
+  const rol = document.getElementById('us_rol').value;
+  if (!nombre || !apellido || !email || !password) { notify('Complete todos los campos', 'error'); return; }
+  if (password.length < 8) { notify('La contraseña debe tener al menos 8 caracteres', 'error'); return; }
+
+  // Usar la función segura que crea usuario + identidad + perfil correctamente
+  const { data, error } = await sb.rpc('crear_usuario_sistema', {
+    p_email: email,
+    p_password: password,
+    p_nombre: nombre,
+    p_apellido: apellido,
+    p_rol: rol
+  });
+
+  if (error) { notify('Error: ' + error.message, 'error'); return; }
+  if (data && !data.success) { notify('Error: ' + data.error, 'error'); return; }
+
+  notify(`Usuario ${nombre} ${apellido} creado correctamente`);
+  closeModal('modalUsuario');
+  // Limpiar campos
+  ['us_nombre','us_apellido','us_email','us_pass'].forEach(id => document.getElementById(id).value = '');
+  loadUsuarios();
+}
+
+// ═══════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════
+initAuth();
+</script>
+</body>
+</html>
