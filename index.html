@@ -2281,6 +2281,177 @@ async function xlsEstadoCuenta(){
   }catch(e){toast('Error al generar: '+e.message,'err');}
   finally{btn.disabled=false;btn.textContent='⬇ Descargar Excel';}
 }
+// ══ REPORTES EXCEL (SheetJS) ══
+function xlsStyle(bg,fg,bold,sz,halign,italic){
+  return{font:{name:'Arial',bold:!!bold,sz:sz||10,color:{rgb:fg||'FF1A2E2A'},italic:!!italic},
+    fill:{patternType:'solid',fgColor:{rgb:bg||'FFFFFFFF'}},
+    alignment:{horizontal:halign||'left',vertical:'center',wrapText:true},
+    border:{top:{style:'thin',color:{rgb:'FFCCCCCC'}},bottom:{style:'thin',color:{rgb:'FFCCCCCC'}},
+      left:{style:'thin',color:{rgb:'FFCCCCCC'}},right:{style:'thin',color:{rgb:'FFCCCCCC'}}}};
+}
+const TEAL_XLS='FF2A7A6B',GOLD_XLS='FFF5B830',WHITE_XLS='FFFFFFFF',
+  DARK_XLS='FF1A2E2A',LTEAL_XLS='FFD6EDE9',GRAY_XLS='FFF4F7F6',
+  RED_XLS='FFC0392B',GREEN_XLS='FF27AE60';
+
+function xlsHeader(ws,titulo,cols,rowStart){
+  if(!ws['!merges'])ws['!merges']=[];
+  for(let c=0;c<cols;c++){ws[XLSX.utils.encode_cell({r:rowStart,c})]={v:c===0?'CUIDALMA — Sistema de Gestión Integral de Salud':'',t:'s',s:xlsStyle(TEAL_XLS,WHITE_XLS,true,c===0?14:10,'center')};}
+  ws['!merges'].push({s:{r:rowStart,c:0},e:{r:rowStart,c:cols-1}});
+  const r2=rowStart+1;
+  for(let c=0;c<cols;c++)ws[XLSX.utils.encode_cell({r:r2,c})]={v:c===0?titulo:'',t:'s',s:xlsStyle(GOLD_XLS,DARK_XLS,true,12,'center')};
+  ws['!merges'].push({s:{r:r2,c:0},e:{r:r2,c:cols-1}});
+  const r3=rowStart+2;
+  const fecha='Fecha de emisión: '+new Date().toLocaleString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  for(let c=0;c<cols;c++)ws[XLSX.utils.encode_cell({r:r3,c})]={v:c===0?fecha:'',t:'s',s:{font:{name:'Arial',sz:9,italic:true,color:{rgb:DARK_XLS}},fill:{patternType:'solid',fgColor:{rgb:LTEAL_XLS}},alignment:{horizontal:'left',vertical:'center'}}};
+  ws['!merges'].push({s:{r:r3,c:0},e:{r:r3,c:cols-1}});
+  return rowStart+3;
+}
+
+async function xlsAfiliados(){
+  const btn=document.getElementById('btnXlsAf');
+  btn.disabled=true;btn.textContent='⏳ Generando…';
+  try{
+    const{data:afs}=await sb.from('afiliados')
+      .select('numero,apellido,nombre,dni,estado,planes(nombre,cuota_titular),telefono,email,grupo_empresa,fecha_alta,direccion')
+      .order('apellido');
+    const{data:ccs}=await sb.from('cuenta_corriente').select('afiliado_id,importe,tipo');
+    const saldoMap={};
+    (ccs||[]).forEach(r=>{
+      if(!saldoMap[r.afiliado_id])saldoMap[r.afiliado_id]=0;
+      saldoMap[r.afiliado_id]+=(r.tipo==='debito'?1:-1)*Number(r.importe||0);
+    });
+    const wb=XLSX.utils.book_new();
+    const ws={};
+    const COLS=['#','DNI','APELLIDO Y NOMBRE','PLAN','CUOTA ($)','ESTADO CC','TELÉFONO','EMAIL','DOMICILIO','ALTA'];
+    const WCOLS=[5,14,28,10,12,12,14,24,30,10];
+    let row=xlsHeader(ws,'LISTADO DE AFILIADOS',COLS.length,0);
+    COLS.forEach((h,ci)=>{ws[XLSX.utils.encode_cell({r:row,c:ci})]={v:h,t:'s',s:xlsStyle(TEAL_XLS,WHITE_XLS,true,9,'center')};});
+    row++;
+    (afs||[]).forEach((a,idx)=>{
+      const bg=idx%2===0?WHITE_XLS:GRAY_XLS;
+      const saldo=saldoMap[a.id]||0;
+      const estadoCC=saldo>0?'MOROSO':'AL DÍA';
+      const vals=[
+        idx+1,a.dni||'',(a.apellido||'')+', '+(a.nombre||''),
+        a.planes?.nombre||'—',Number(a.planes?.cuota_titular||0),estadoCC,
+        a.telefono||'—',a.email||'—',a.direccion||'—',
+        a.fecha_alta?new Date(a.fecha_alta+'T12:00:00').toLocaleDateString('es-AR'):'—'
+      ];
+      vals.forEach((val,ci)=>{
+        const addr=XLSX.utils.encode_cell({r:row,c:ci});
+        let st=ci===4?xlsStyle(bg,TEAL_XLS,true,10,'center')
+          :ci===5?xlsStyle(bg,saldo>0?RED_XLS:GREEN_XLS,true,9,'center')
+          :ci===3?xlsStyle(bg,TEAL_XLS,true,10,'center')
+          :ci===0?xlsStyle(bg,DARK_XLS,false,10,'center')
+          :xlsStyle(bg,DARK_XLS,false,10,'left');
+        ws[addr]={v:val,t:typeof val==='number'?'n':'s',s:st};
+        if(ci===4)ws[addr].z='$#,##0';
+      });
+      row++;
+    });
+    const totalCuota=(afs||[]).reduce((s,a)=>s+Number(a.planes?.cuota_titular||0),0);
+    const morosos=(afs||[]).filter(a=>(saldoMap[a.id]||0)>0).length;
+    ['','','TOTAL FACTURACIÓN MENSUAL','','','','','','',''].forEach((val,ci)=>{
+      ws[XLSX.utils.encode_cell({r:row,c:ci})]={v:val,t:'s',s:xlsStyle(TEAL_XLS,WHITE_XLS,true,10,ci===2?'right':'center')};
+    });
+    ws[XLSX.utils.encode_cell({r:row,c:4})]={v:totalCuota,t:'n',z:'$#,##0',s:xlsStyle(GOLD_XLS,DARK_XLS,true,11,'center')};
+    ws[XLSX.utils.encode_cell({r:row,c:5})]={v:morosos+' MOROSOS',t:'s',s:xlsStyle(RED_XLS,WHITE_XLS,true,9,'center')};
+    ws['!ref']=XLSX.utils.encode_range({r:0,c:0},{r:row,c:COLS.length-1});
+    ws['!cols']=WCOLS.map(w=>({wch:w}));
+    XLSX.utils.book_append_sheet(wb,ws,'Afiliados');
+    XLSX.writeFile(wb,'CUIDALMA_Listado_Afiliados_'+new Date().toISOString().slice(0,10)+'.xlsx');
+    toast('✅ Listado de Afiliados descargado');
+  }catch(e){toast('Error al generar: '+e.message,'err');}
+  finally{btn.disabled=false;btn.textContent='⬇ Descargar Excel';}
+}
+
+async function xlsEstadoCuenta(){
+  const btn=document.getElementById('btnXlsCC');
+  btn.disabled=true;btn.textContent='⏳ Generando…';
+  try{
+    const{data:afs}=await sb.from('afiliados')
+      .select('id,apellido,nombre,dni,planes(nombre,cuota_titular),telefono,direccion,condicion_iva')
+      .order('apellido');
+    const{data:movs}=await sb.from('cuenta_corriente')
+      .select('*').order('afiliado_id').order('fecha');
+    const movMap={};
+    (movs||[]).forEach(m=>{if(!movMap[m.afiliado_id])movMap[m.afiliado_id]=[];movMap[m.afiliado_id].push(m);});
+    const wb=XLSX.utils.book_new();
+    const COLS_CC=8;
+    const WCOLS_CC=[5,14,14,16,28,14,14,14];
+    for(const af of (afs||[])){
+      const ws={};
+      if(!ws['!merges'])ws['!merges']=[];
+      const afMovs=movMap[af.id]||[];
+      const debitos=afMovs.filter(m=>m.tipo==='debito').reduce((s,m)=>s+Number(m.importe||0),0);
+      const creditos=afMovs.filter(m=>m.tipo==='credito').reduce((s,m)=>s+Number(m.importe||0),0);
+      const saldo=debitos-creditos;
+      let row=xlsHeader(ws,'ESTADO DE CUENTA',COLS_CC,0);
+      const infoRows=[
+        ['Apellido y Nombre:',(af.apellido||'')+', '+(af.nombre||''),'DNI:',af.dni||''],
+        ['Plan:',af.planes?.nombre||'—','Cuota:',Number(af.planes?.cuota_titular||0)],
+        ['Estado:',saldo>0?'MOROSO':'AL DÍA','Domicilio:',af.direccion||'—'],
+        ['Cond. IVA:',af.condicion_iva||'—','Emisión:',new Date().toLocaleDateString('es-AR')]
+      ];
+      for(const[l1,v1,l2,v2] of infoRows){
+        const isNum=typeof v1==='number';
+        const esEstado=l1==='Estado:';
+        ws[XLSX.utils.encode_cell({r:row,c:0})]={v:l1,t:'s',s:{font:{name:'Arial',bold:true,sz:9,color:{rgb:DARK_XLS}},fill:{patternType:'solid',fgColor:{rgb:'FFE8EEEC'}},alignment:{horizontal:'right',vertical:'center'}}};
+        ws['!merges'].push({s:{r:row,c:0},e:{r:row,c:1}});
+        ws[XLSX.utils.encode_cell({r:row,c:2})]={v:v1,t:isNum?'n':'s',z:isNum?'$#,##0':undefined,s:{font:{name:'Arial',bold:true,sz:10,color:{rgb:esEstado?(saldo>0?RED_XLS:GREEN_XLS):TEAL_XLS}},fill:{patternType:'solid',fgColor:{rgb:WHITE_XLS}},alignment:{horizontal:'left',vertical:'center'}}};
+        ws['!merges'].push({s:{r:row,c:2},e:{r:row,c:3}});
+        ws[XLSX.utils.encode_cell({r:row,c:4})]={v:l2,t:'s',s:{font:{name:'Arial',bold:true,sz:9,color:{rgb:DARK_XLS}},fill:{patternType:'solid',fgColor:{rgb:'FFE8EEEC'}},alignment:{horizontal:'right',vertical:'center'}}};
+        ws['!merges'].push({s:{r:row,c:4},e:{r:row,c:5}});
+        const isNum2=typeof v2==='number';
+        ws[XLSX.utils.encode_cell({r:row,c:6})]={v:v2,t:isNum2?'n':'s',z:isNum2?'$#,##0':undefined,s:{font:{name:'Arial',bold:isNum2,sz:10,color:{rgb:isNum2?TEAL_XLS:DARK_XLS}},fill:{patternType:'solid',fgColor:{rgb:WHITE_XLS}},alignment:{horizontal:'left',vertical:'center'}}};
+        ws['!merges'].push({s:{r:row,c:6},e:{r:row,c:7}});
+        row++;
+      }
+      row++;
+      ws[XLSX.utils.encode_cell({r:row,c:0})]={v:'MOVIMIENTOS DE CUENTA CORRIENTE',t:'s',s:{font:{name:'Arial',bold:true,sz:9,color:{rgb:TEAL_XLS}},fill:{patternType:'solid',fgColor:{rgb:LTEAL_XLS}},alignment:{horizontal:'left',vertical:'center'}}};
+      ws['!merges'].push({s:{r:row,c:0},e:{r:row,c:COLS_CC-1}});
+      row++;
+      ['#','FECHA','PERÍODO','N° FACTURA','CONCEPTO','DÉBITO ($)','CRÉDITO ($)','SALDO ($)'].forEach((h,ci)=>{
+        ws[XLSX.utils.encode_cell({r:row,c:ci})]={v:h,t:'s',s:xlsStyle(TEAL_XLS,WHITE_XLS,true,9,'center')};
+      });
+      row++;
+      let saldoAcum=0;
+      if(!afMovs.length){
+        ws[XLSX.utils.encode_cell({r:row,c:0})]={v:'Sin movimientos registrados',t:'s',s:{font:{name:'Arial',sz:10,italic:true,color:{rgb:'FF999999'}},alignment:{horizontal:'left'}}};
+        ws['!merges'].push({s:{r:row,c:0},e:{r:row,c:COLS_CC-1}});
+        row++;
+      }else{
+        afMovs.forEach((m,idx)=>{
+          const bg=idx%2===0?WHITE_XLS:GRAY_XLS;
+          if(m.tipo==='debito')saldoAcum+=Number(m.importe||0);
+          else saldoAcum-=Number(m.importe||0);
+          const imp=Number(m.importe||0);
+          const rv=[idx+1,m.fecha?new Date(m.fecha+'T12:00:00').toLocaleDateString('es-AR'):'—',m.periodo||'—',m.comprobante||'—',m.concepto||'—',m.tipo==='debito'?imp:0,m.tipo==='credito'?imp:0,saldoAcum];
+          rv.forEach((val,ci)=>{
+            const addr=XLSX.utils.encode_cell({r:row,c:ci});
+            let st=ci>=5?xlsStyle(bg,ci===7?(saldoAcum>0?RED_XLS:GREEN_XLS):(ci===5?RED_XLS:GREEN_XLS),ci===7,ci===7?11:10,'center'):ci===0?xlsStyle(bg,DARK_XLS,false,10,'center'):xlsStyle(bg,DARK_XLS,false,10,'left');
+            ws[addr]={v:val,t:typeof val==='number'?'n':'s',z:typeof val==='number'&&ci>=5?'$#,##0':undefined,s:st};
+          });
+          row++;
+        });
+      }
+      ws[XLSX.utils.encode_cell({r:row,c:0})]={v:'SALDO TOTAL A LA FECHA',t:'s',s:xlsStyle(saldo>0?RED_XLS:TEAL_XLS,WHITE_XLS,true,11,'right')};
+      ws['!merges'].push({s:{r:row,c:0},e:{r:row,c:6}});
+      for(let c=1;c<7;c++)ws[XLSX.utils.encode_cell({r:row,c})]={v:'',t:'s',s:xlsStyle(saldo>0?RED_XLS:TEAL_XLS,WHITE_XLS,false,10)};
+      ws[XLSX.utils.encode_cell({r:row,c:7})]={v:saldo,t:'n',z:'$#,##0',s:xlsStyle(GOLD_XLS,DARK_XLS,true,14,'center')};
+      row+=2;
+      ws[XLSX.utils.encode_cell({r:row,c:0})]={v:'CUIDALMA  |  Sistema de Gestión Integral de Salud  |  Documento de uso interno',t:'s',s:{font:{name:'Arial',sz:8,italic:true,color:{rgb:'FF999999'}},alignment:{horizontal:'center'}}};
+      ws['!merges'].push({s:{r:row,c:0},e:{r:row,c:COLS_CC-1}});
+      ws['!ref']=XLSX.utils.encode_range({r:0,c:0},{r:row,c:COLS_CC-1});
+      ws['!cols']=WCOLS_CC.map(w=>({wch:w}));
+      const sheetName=(af.apellido||'AF').substring(0,20).replace(/[\\/?*:[\]]/g,'');
+      XLSX.utils.book_append_sheet(wb,ws,sheetName);
+    }
+    XLSX.writeFile(wb,'CUIDALMA_Estado_de_Cuenta_'+new Date().toISOString().slice(0,10)+'.xlsx');
+    toast('✅ Estado de Cuenta descargado ('+((afs||[]).length)+' afiliados)');
+  }catch(e){toast('Error al generar: '+e.message,'err');}
+  finally{btn.disabled=false;btn.textContent='⬇ Descargar Excel';}
+}
 // ══ INIT ══
 initAuth();
 </script>
