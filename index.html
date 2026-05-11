@@ -1,0 +1,2797 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cuidalma — Sistema de Gestión</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{
+  --teal:#2A7A6B;--teal-d:#1e5a4e;--teal-l:#3d9e8b;
+  --sky:#7BB8D4;--gold:#F5B830;--gold-d:#d4991f;
+  --cream:#FAF8F3;--dark:#1a2e2a;--gray:#6b7c79;
+  --lg:#e8edeb;--white:#fff;
+  --sw:240px;--hh:60px;
+  --danger:#c0392b;--success:#27ae60;--warning:#e67e22;--info:#2980b9;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:#f0f4f2;color:var(--dark)}
+#authGuard{position:fixed;inset:0;background:#0f1f1c;display:flex;align-items:center;
+  justify-content:center;z-index:9999;flex-direction:column;gap:20px;transition:opacity .4s}
+#authGuard.hide{opacity:0;pointer-events:none}
+.guard-logo{font-family:'Cormorant Garamond',serif;font-size:36px;font-weight:300;color:#fff;letter-spacing:3px}
+.g-spin{width:28px;height:28px;border:2px solid rgba(42,122,107,.3);border-top-color:var(--teal-l);
+  border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#app{display:none}
+#app.show{display:flex;min-height:100vh}
+.sidebar{width:var(--sw);background:var(--dark);display:flex;flex-direction:column;
+  position:fixed;left:0;top:0;bottom:0;z-index:100;overflow:hidden}
+.sb-brand{padding:18px 20px 14px;border-bottom:1px solid rgba(255,255,255,.07);flex-shrink:0}
+.sb-name{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:300;color:#fff;letter-spacing:2px}
+.sb-sub{font-size:10px;color:rgba(255,255,255,.35);letter-spacing:1.5px;text-transform:uppercase;margin-top:2px}
+.nav-scroll{overflow-y:auto;flex:1}
+.nsec{padding:12px 12px 4px}
+.nsec-lbl{font-size:10px;font-weight:500;color:rgba(255,255,255,.28);letter-spacing:1.5px;
+  text-transform:uppercase;padding:0 8px;margin-bottom:3px}
+.ni{display:flex;align-items:center;gap:9px;padding:8px 12px;border-radius:8px;
+  cursor:pointer;color:rgba(255,255,255,.58);font-size:13px;transition:all .15s;margin-bottom:1px;user-select:none}
+.ni:hover{background:rgba(255,255,255,.06);color:rgba(255,255,255,.9)}
+.ni.active{background:var(--teal);color:#fff}
+.ni svg{flex-shrink:0;opacity:.8}
+.ni.active svg{opacity:1}
+.sb-foot{padding:12px;border-top:1px solid rgba(255,255,255,.07);flex-shrink:0}
+.ucard{display:flex;align-items:center;gap:9px;padding:9px;border-radius:8px;cursor:pointer;transition:background .15s}
+.ucard:hover{background:rgba(255,255,255,.06)}
+.uav{width:32px;height:32px;border-radius:9px;background:var(--teal);display:flex;
+  align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff;flex-shrink:0}
+.uinf{flex:1;min-width:0}
+.uname{font-size:12.5px;color:rgba(255,255,255,.85);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.urole{font-size:10.5px;color:rgba(255,255,255,.32)}
+.logout{background:none;border:none;cursor:pointer;color:rgba(255,255,255,.28);padding:4px;transition:color .15s}
+.logout:hover{color:rgba(255,80,80,.8)}
+.main{margin-left:var(--sw);flex:1;display:flex;flex-direction:column;min-height:100vh}
+.topbar{height:var(--hh);background:#fff;border-bottom:1px solid var(--lg);
+  display:flex;align-items:center;padding:0 24px;position:sticky;top:0;z-index:50;gap:12px}
+.tb-title{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:500;letter-spacing:.5px}
+.tb-pill{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--gray);
+  padding:3px 10px;background:var(--cream);border-radius:20px;border:1px solid var(--lg)}
+.pdot{width:6px;height:6px;border-radius:50%;background:var(--gold);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.tb-act{margin-left:auto;display:flex;align-items:center;gap:8px}
+.tb-btn{background:none;border:1px solid var(--lg);padding:6px 13px;border-radius:7px;
+  font-family:'DM Sans',sans-serif;font-size:12.5px;color:var(--gray);cursor:pointer;
+  transition:all .15s;display:flex;align-items:center;gap:5px}
+.tb-btn:hover{border-color:var(--teal);color:var(--teal)}
+.tb-btn.pr{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:500}
+.tb-btn.pr:hover{background:var(--teal-d)}
+.page{display:none;padding:20px;flex:1}
+.page.active{display:block}
+.card{background:#fff;border-radius:12px;padding:20px;border:1px solid var(--lg);margin-bottom:14px}
+.card-title{font-family:'Cormorant Garamond',serif;font-size:19px;font-weight:500;margin-bottom:2px}
+.card-sub{font-size:12.5px;color:var(--gray);margin-bottom:16px}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+.kpi{background:#fff;border-radius:12px;padding:18px;border:1px solid var(--lg);
+  position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s;cursor:default}
+.kpi:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.08)}
+.kpi::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px}
+.kpi.k-teal::after{background:var(--teal)}.kpi.k-gold::after{background:var(--gold)}
+.kpi.k-sky::after{background:var(--sky)}.kpi.k-red::after{background:var(--danger)}
+.kpi.k-green::after{background:var(--success)}.kpi.k-warn::after{background:var(--warning)}
+.kpi-lbl{font-size:10.5px;font-weight:500;color:var(--gray);letter-spacing:1.2px;text-transform:uppercase;margin-bottom:8px}
+.kpi-val{font-family:'Cormorant Garamond',serif;font-size:36px;font-weight:500;line-height:1}
+.kpi-sub{font-size:11.5px;color:var(--gray);margin-top:5px}
+.kpi-trend{position:absolute;top:14px;right:14px;font-size:20px;opacity:.15}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{text-align:left;padding:9px 13px;font-size:10.5px;font-weight:500;color:var(--gray);
+  letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid var(--lg);background:var(--cream);
+  white-space:nowrap}
+tbody tr{border-bottom:1px solid #f0f0f0;transition:background .1s}
+tbody tr:hover{background:#fafaf8}
+tbody td{padding:10px 13px;vertical-align:middle}
+.badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap}
+.bg{background:#e8f5e9;color:#2e7d32}.br{background:#fdecea;color:#c62828}
+.bo{background:#fff8e1;color:#f57c00}.bb{background:#e3f2fd;color:#1565c0}
+.by{background:#f5f5f5;color:#616161}.bt{background:#e0f2f1;color:#00695c}
+.bp{background:#f3e5f5;color:#6a1b9a}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fg.s2{grid-column:span 2}.fg.s3{grid-column:span 3}
+.fgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.fgrid.c3{grid-template-columns:repeat(3,1fr)}.fgrid.c4{grid-template-columns:repeat(4,1fr)}
+label{font-size:11.5px;font-weight:500;color:var(--gray)}
+input,select,textarea{padding:8px 11px;border:1.5px solid var(--lg);border-radius:7px;
+  font-family:'DM Sans',sans-serif;font-size:13.5px;color:var(--dark);background:#fff;
+  outline:none;transition:border-color .2s;width:100%}
+input:focus,select:focus,textarea:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(42,122,107,.1)}
+select{cursor:pointer}
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;
+  display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.mo.show{opacity:1;pointer-events:all}
+.modal{background:#fff;border-radius:14px;width:min(600px,95vw);max-height:90vh;
+  overflow-y:auto;padding:28px;box-shadow:0 24px 60px rgba(0,0,0,.2);
+  transform:translateY(20px);transition:transform .2s}
+.mo.show .modal{transform:translateY(0)}
+.modal-lg{width:min(780px,95vw)}
+.modal-xl{width:min(900px,95vw)}
+.modal-title{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:500;margin-bottom:2px}
+.modal-sub{font-size:12.5px;color:var(--gray);margin-bottom:20px}
+.mfoot{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;
+  padding-top:16px;border-top:1px solid var(--lg)}
+.btn{padding:8px 18px;border-radius:7px;border:none;font-family:'DM Sans',sans-serif;
+  font-size:13.5px;font-weight:500;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px}
+.btn-p{background:var(--teal);color:#fff}.btn-p:hover{background:var(--teal-d)}
+.btn-s{background:var(--lg);color:var(--dark)}.btn-s:hover{background:#dde4e1}
+.btn-d{background:var(--danger);color:#fff}.btn-d:hover{background:#a93226}
+.btn-w{background:var(--warning);color:#fff}.btn-w:hover{background:#d35400}
+.btn-gold{background:var(--gold);color:var(--dark)}.btn-gold:hover{background:var(--gold-d)}
+.btn-sm{padding:4px 10px;font-size:11.5px;border-radius:6px}
+.btn-ico{background:none;border:1px solid var(--lg);padding:5px 9px;border-radius:6px;
+  cursor:pointer;font-size:12px;color:var(--gray);transition:all .15s}
+.btn-ico:hover{border-color:var(--teal);color:var(--teal)}
+.btn-ico.del:hover{border-color:var(--danger);color:var(--danger)}
+.sw{position:relative;margin-bottom:12px}
+.sw input{padding-left:32px;max-width:340px}
+.sw svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--gray);opacity:.5;pointer-events:none}
+.bar-row{margin-bottom:12px}
+.bar-hdr{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px}
+.bar-track{background:var(--lg);border-radius:4px;height:7px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;transition:width .7s ease}
+.tabs{display:flex;gap:4px;margin-bottom:16px;background:var(--cream);padding:4px;border-radius:9px;width:fit-content}
+.tab{padding:6px 16px;border-radius:6px;cursor:pointer;font-size:13px;color:var(--gray);transition:all .15s}
+.tab.active{background:#fff;color:var(--teal);font-weight:500;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.loading{display:flex;align-items:center;gap:9px;padding:36px;color:var(--gray);justify-content:center}
+.ms{width:17px;height:17px;border:2px solid var(--lg);border-top-color:var(--teal);
+  border-radius:50%;animation:spin .6s linear infinite}
+.empty{text-align:center;padding:40px 20px;color:var(--gray);font-size:13.5px}
+#ntf{position:fixed;bottom:20px;right:20px;z-index:999;display:flex;flex-direction:column;gap:7px}
+.notif{background:#fff;border-radius:9px;padding:12px 15px;
+  box-shadow:0 6px 20px rgba(0,0,0,.12);border-left:4px solid var(--teal);
+  font-size:13px;max-width:320px;animation:sli .25s ease;display:flex;align-items:center;gap:8px}
+.notif.err{border-color:var(--danger)}.notif.wrn{border-color:var(--warning)}
+@keyframes sli{from{transform:translateX(30px);opacity:0}to{transform:translateX(0);opacity:1}}
+.fin-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.fin-box{background:#fff;border-radius:10px;padding:16px;border:1px solid var(--lg);text-align:center}
+.fin-box-lbl{font-size:11px;color:var(--gray);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.fin-box-val{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:500}
+.fin-box.ing .fin-box-val{color:var(--success)}
+.fin-box.egr .fin-box-val{color:var(--danger)}
+.fin-box.net .fin-box-val{color:var(--teal)}
+.db-row{display:grid;gap:14px;margin-bottom:14px}
+.db-row.c2{grid-template-columns:1fr 1fr}
+.db-row.c3{grid-template-columns:1fr 1fr 1fr}
+.db-row.c21{grid-template-columns:1.4fr 1fr}
+.toggle-wrap{display:inline-flex;align-items:center;gap:7px;cursor:pointer;user-select:none}
+.toggle-track{position:relative;width:38px;height:21px;border-radius:11px;transition:background .2s}
+.toggle-track.on{background:var(--teal)}
+.toggle-track.off{background:#ccc}
+.toggle-thumb{position:absolute;top:2.5px;width:16px;height:16px;border-radius:50%;
+  background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.toggle-track.on .toggle-thumb{left:19px}
+.toggle-track.off .toggle-thumb{left:2.5px}
+.toggle-lbl{font-size:12px;min-width:42px}
+.cc-resumen{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.cc-box{border-radius:10px;padding:14px;text-align:center;border:1px solid}
+.cc-box.deudor{background:#fdecea;border-color:#f5c6cb}
+.cc-box.ok{background:#e8f5e9;border-color:#c8e6c9}
+.cc-box.neutral{background:var(--cream);border-color:var(--lg)}
+.cc-box-lbl{font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+.cc-box-val{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:600}
+.cc-box-sub{font-size:10.5px;margin-top:2px}
+.cc-box.deudor .cc-box-lbl{color:#c62828}.cc-box.deudor .cc-box-val{color:#c62828}.cc-box.deudor .cc-box-sub{color:#c62828}
+.cc-box.ok .cc-box-lbl{color:#2e7d32}.cc-box.ok .cc-box-val{color:#2e7d32}.cc-box.ok .cc-box-sub{color:#2e7d32}
+.cc-box.neutral .cc-box-lbl{color:var(--gray)}.cc-box.neutral .cc-box-val{color:var(--teal)}.cc-box.neutral .cc-box-sub{color:var(--gray)}
+@media(max-width:920px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.fgrid{grid-template-columns:1fr}.fin-summary{grid-template-columns:1fr}.cc-resumen{grid-template-columns:1fr}}
+@media print{.sidebar,.topbar,#ntf,.mfoot,.cc-resumen,.cc-filtros{display:none!important}.main{margin-left:0!important}}
+.cc-af-card{background:#fff;border:1px solid var(--lg);border-radius:10px;margin-bottom:10px;overflow:hidden;transition:box-shadow .2s}
+.cc-af-card:hover{box-shadow:0 3px 12px rgba(0,0,0,.07)}
+.cc-af-head{display:flex;align-items:center;gap:12px;padding:13px 16px;cursor:pointer;user-select:none}
+.cc-af-head:hover{background:#fafaf8}
+.cc-af-avatar{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0}
+.cc-af-info{flex:1;min-width:0}
+.cc-af-nombre{font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cc-af-plan{font-size:11px;color:var(--gray)}
+.cc-af-saldo{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:600;white-space:nowrap}
+.cc-af-caret{font-size:11px;color:var(--gray);transition:transform .2s;flex-shrink:0}
+.cc-af-body{display:none;border-top:1px solid var(--lg)}
+.cc-af-body.open{display:block}
+.cc-af-body table{font-size:12px}
+.cc-af-body thead th{font-size:9.5px;padding:6px 12px}
+.cc-af-body tbody td{padding:7px 12px}
+.recibo-wrap{font-family:'DM Sans',sans-serif;max-width:480px;margin:0 auto}
+.recibo-header{text-align:center;padding-bottom:16px;border-bottom:2px solid var(--teal);margin-bottom:16px}
+.recibo-logo{font-family:'Cormorant Garamond',serif;font-size:28px;color:var(--teal);letter-spacing:2px;font-weight:300}
+.recibo-sub{font-size:10px;color:var(--gray);letter-spacing:1.5px;text-transform:uppercase}
+.recibo-num{font-size:12px;color:var(--gray);margin-top:4px}
+.recibo-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--lg);font-size:13px}
+.recibo-row:last-child{border-bottom:none}
+.recibo-lbl{color:var(--gray)}
+.recibo-val{font-weight:600}
+.recibo-total{display:flex;justify-content:space-between;padding:12px 16px;background:var(--cream);border-radius:8px;margin-top:12px}
+.recibo-total-lbl{font-weight:600;font-size:14px}
+.recibo-total-val{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:600;color:var(--teal)}
+.recibo-firma{margin-top:20px;padding-top:16px;border-top:1px dashed var(--lg);display:flex;justify-content:space-between;font-size:11px;color:var(--gray)}
+/* Liquidación comisiones */
+.liq-resumen{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.liq-box{border-radius:10px;padding:14px;text-align:center;border:1px solid var(--lg);background:#fff}
+.liq-box-lbl{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--gray);margin-bottom:4px}
+.liq-box-val{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:600;color:var(--teal)}
+/* Detalle liquidación */
+.det-card{background:var(--cream);border:1px solid var(--lg);border-radius:10px;padding:16px;margin-top:12px}
+.det-card-title{font-weight:600;font-size:13px;margin-bottom:10px;color:var(--teal)}
+@media print{
+  body *{visibility:hidden}
+  #mRecibo,#mRecibo *{visibility:visible}
+  #mRecibo{position:fixed;inset:0;background:#fff;z-index:9999;display:flex!important;align-items:flex-start;justify-content:center;padding:40px}
+  #mRecibo .modal{box-shadow:none;border:none;width:100%;max-width:480px}
+  #mRecibo .mfoot{display:none!important}
+}
+</style>
+</head>
+<body>
+
+<div id="authGuard">
+  <div class="guard-logo">Cuidalma</div>
+  <div class="g-spin"></div>
+</div>
+
+<div id="app">
+<nav class="sidebar">
+  <div class="sb-brand">
+    <div class="sb-name">Cuidalma</div>
+    <div class="sb-sub">Gestión en Salud</div>
+  </div>
+  <div class="nav-scroll">
+    <div class="nsec">
+      <div class="nsec-lbl">Principal</div>
+      <div class="ni active" onclick="nav('dashboard')">
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Dashboard</div>
+    </div>
+    <div class="nsec">
+      <div class="nsec-lbl">Afiliaciones</div>
+      <div class="ni" onclick="nav('afiliados')">
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87m-4-12a4 4 0 010 7.75"/></svg>Afiliados</div>
+      <div class="ni" onclick="nav('planes')">
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>Planes</div>
+    </div>
+    <div class="nsec">
+      <div class="nsec-lbl">Prestadores</div>
+      <div class="ni" onclick="nav('prestadores')">
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>Prestadores</div>
+      <div class="ni" onclick="nav('acuerdos')">
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>Acuerdos</div>
+    </div>
+    <div class="nsec">
+      <div class="nsec-lbl">Finanzas</div>
+      <div class="ni" onclick="nav('cobros')">
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>Cobros</div>
+      <div class="ni" onclick="nav('cuentas')">
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>Ctas. Corrientes</div>
+      <div class="ni" onclick="nav('finanzas')">
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>Gestión Financiera</div>
+      <div class="ni" onclick="nav('devengamiento')">
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>Devengamiento</div>
+    </div>
+    <div class="nsec">
+      <div class="nsec-lbl">Gestión</div>
+      <div class="ni" onclick="nav('crm')">
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>CRM</div>
+      <div class="ni" onclick="nav('vendedores')">
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>Vendedores</div>
+      <div class="ni" onclick="nav('comisiones')">
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Liquidación Comisiones</div>
+      <div class="ni" onclick="nav('informes')">
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>Informes</div>
+    </div>
+    <div class="nsec" id="adminSec" style="display:none">
+      <div class="nsec-lbl">Admin</div>
+      <div class="ni" onclick="nav('usuarios')">
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>Usuarios</div>
+    </div>
+  </div>
+  <div class="sb-foot">
+    <div class="ucard">
+      <div class="uav" id="uAv">A</div>
+      <div class="uinf">
+        <div class="uname" id="uNm">Cargando…</div>
+        <div class="urole" id="uRl">—</div>
+      </div>
+      <button class="logout" onclick="logout()" title="Salir">
+        <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<div class="main">
+  <div class="topbar">
+    <div class="tb-title" id="tbTitle">Dashboard</div>
+    <div class="tb-pill"><span class="pdot"></span><span id="periodoLbl"></span></div>
+    <div class="tb-act" id="tbAct"></div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div class="page active" id="pg-dashboard">
+    <div class="kpi-grid" id="kpiGrid"><div class="loading" style="grid-column:span 4"><div class="ms"></div>Cargando…</div></div>
+    <div class="db-row c21">
+      <div class="card">
+        <div class="card-title">Estado de Resultados</div>
+        <div class="card-sub">Ingresos vs Egresos por período</div>
+        <div id="dbEstRes"><div class="loading"><div class="ms"></div></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Distribución de Planes</div>
+        <div class="card-sub">Afiliados activos por plan</div>
+        <div id="dbPlanes"><div class="loading"><div class="ms"></div></div></div>
+      </div>
+    </div>
+    <div class="db-row c3">
+      <div class="card">
+        <div class="card-title">Pendiente de Cobro</div>
+        <div class="card-sub">Afiliados con saldo deudor</div>
+        <div id="dbPend"><div class="loading"><div class="ms"></div></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Flujo de Caja</div>
+        <div class="card-sub">Últimos 7 días efectivo</div>
+        <div id="dbFlujo"><div class="loading"><div class="ms"></div></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Comisiones Pendientes</div>
+        <div class="card-sub">Vendedores con comisión a pagar</div>
+        <div id="dbComisiones"><div class="loading"><div class="ms"></div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AFILIADOS -->
+  <div class="page" id="pg-afiliados">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+        <div><div class="card-title">Afiliados</div><div class="card-sub" id="afCnt">—</div></div>
+        <button class="btn btn-p" onclick="abrirAfiliado()">+ Nuevo Afiliado</button>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+        <div class="sw" style="margin:0">
+          <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" id="afQ" placeholder="Buscar nombre, DNI, plan…" oninput="renderAf()" style="max-width:260px">
+        </div>
+        <select id="afEst" onchange="renderAf()" style="width:auto;padding:6px 10px;font-size:12.5px">
+          <option value="">Todos los estados</option>
+          <option value="activo">Activo</option><option value="moroso">Moroso</option>
+          <option value="suspendido">Suspendido</option><option value="baja">Baja</option>
+        </select>
+        <select id="afPln" onchange="renderAf()" style="width:auto;padding:6px 10px;font-size:12.5px">
+          <option value="">Todos los planes</option>
+        </select>
+        <select id="afVend" onchange="renderAf()" style="width:auto;padding:6px 10px;font-size:12.5px">
+          <option value="">Todos los vendedores</option>
+        </select>
+      </div>
+      <div class="tw" id="afTbl"><div class="loading"><div class="ms"></div></div></div>
+    </div>
+  </div>
+
+  <!-- PLANES -->
+  <div class="page" id="pg-planes">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+        <div><div class="card-title">Planes de Salud</div><div class="card-sub">Gestión de planes y cuotas vigentes</div></div>
+        <button class="btn btn-p" onclick="abrirPlan()">+ Nuevo Plan</button>
+      </div>
+      <div class="tw" id="plTbl"><div class="loading"><div class="ms"></div></div></div>
+    </div>
+  </div>
+
+  <!-- PRESTADORES -->
+  <div class="page" id="pg-prestadores">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+        <div>
+          <div class="card-title">Red de Prestadores</div>
+          <div class="card-sub">Cartilla médica organizada por segmento geográfico</div>
+        </div>
+        <button class="btn btn-p" onclick="abrirPrestador()">+ Nuevo Prestador</button>
+      </div>
+      <div id="prTbl"><div class="loading"><div class="ms"></div>Cargando cartilla…</div></div>
+    </div>
+  </div>
+
+  <!-- ACUERDOS -->
+  <div class="page" id="pg-acuerdos">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+        <div><div class="card-title">Acuerdos con Prestadores</div><div class="card-sub">Contratos — puede editar o eliminar cada acuerdo</div></div>
+        <button class="btn btn-p" onclick="abrirAcuerdo()">+ Nuevo Acuerdo</button>
+      </div>
+      <div class="tw" id="acTbl"><div class="loading"><div class="ms"></div></div></div>
+    </div>
+  </div>
+
+  <!-- COBROS -->
+  <div class="page" id="pg-cobros">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+        <div><div class="card-title">Cobros</div><div class="card-sub">Registrar un cobro actualiza automáticamente cuenta corriente y finanzas</div></div>
+        <button class="btn btn-p" onclick="abrirCobro()">+ Registrar Cobro</button>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+        <div class="sw" style="margin:0">
+          <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" id="coQ" placeholder="Buscar afiliado…" oninput="renderCob()" style="max-width:220px">
+        </div>
+        <select id="coEstFilt" onchange="renderCob()" style="width:auto;padding:6px 10px;font-size:12.5px">
+          <option value="">Todos los estados</option>
+          <option value="acreditado">Acreditado</option>
+          <option value="en_camara">En Cámara</option>
+          <option value="rechazado">Rechazado</option>
+        </select>
+        <select id="coPerFilt" onchange="renderCob()" style="width:auto;padding:6px 10px;font-size:12.5px">
+          <option value="">Todos los períodos</option>
+        </select>
+      </div>
+      <div class="tw" id="coTbl"><div class="loading"><div class="ms"></div></div></div>
+    </div>
+  </div>
+
+  <!-- CUENTAS CORRIENTES -->
+  <div class="page" id="pg-cuentas">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+        <div><div class="card-title">Cuentas Corrientes</div>
+        <div class="card-sub">Movimientos y saldos por afiliado — actualizado en tiempo real</div></div>
+      </div>
+      <div id="ccTbl"><div class="loading"><div class="ms"></div></div></div>
+    </div>
+  </div>
+
+  <!-- GESTIÓN FINANCIERA -->
+  <div class="page" id="pg-finanzas">
+    <div class="tabs">
+      <div class="tab active" onclick="finTab('transacciones',this)">Transacciones</div>
+      <div class="tab" onclick="finTab('estado_resultados',this)">Estado de Resultados</div>
+      <div class="tab" onclick="finTab('flujo_caja',this)">Flujo de Caja</div>
+      <div class="tab" onclick="finTab('por_categoria',this)">Por Categoría</div>
+    </div>
+    <div id="fin-transacciones">
+      <div class="fin-summary" id="finResumen"></div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+          <div><div class="card-title">Transacciones</div><div class="card-sub">Ingresos y egresos operativos — cobros se sincronizan automáticamente</div></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-p" onclick="abrirTx('ingreso')">+ Ingreso</button>
+            <button class="btn btn-w" onclick="abrirTx('egreso')">+ Egreso</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+          <select id="finFiltTipo" onchange="loadFinTx()" style="width:auto;padding:6px 10px;font-size:12.5px">
+            <option value="">Todos</option><option value="ingreso">Ingresos</option><option value="egreso">Egresos</option>
+          </select>
+          <select id="finFiltEst" onchange="loadFinTx()" style="width:auto;padding:6px 10px;font-size:12.5px">
+            <option value="">Todos los estados</option>
+            <option value="pagado">Pagado</option><option value="pendiente">Pendiente</option>
+            <option value="vencido">Vencido</option>
+          </select>
+          <input type="month" id="finFiltMes" onchange="loadFinTx()" style="width:auto;padding:6px 10px;font-size:12.5px" value="2026-04">
+        </div>
+        <div class="tw" id="finTxTbl"><div class="loading"><div class="ms"></div></div></div>
+      </div>
+    </div>
+    <div id="fin-estado_resultados" style="display:none">
+      <div class="card">
+        <div class="card-title">Estado de Resultados</div>
+        <div class="card-sub">Comparativo de ingresos y egresos por período</div>
+        <div class="tw" id="finERTbl"><div class="loading"><div class="ms"></div></div></div>
+      </div>
+    </div>
+    <div id="fin-flujo_caja" style="display:none">
+      <div class="card">
+        <div class="card-title">Flujo de Caja</div>
+        <div class="card-sub">Movimientos de efectivo acreditados por día</div>
+        <div class="tw" id="finFCTbl"><div class="loading"><div class="ms"></div></div></div>
+      </div>
+    </div>
+    <div id="fin-por_categoria" style="display:none">
+      <div class="db-row c2">
+        <div class="card">
+          <div class="card-title" style="color:var(--success)">▲ Ingresos por Categoría</div>
+          <div class="tw" id="finCatIngTbl"></div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="color:var(--danger)">▼ Egresos por Categoría</div>
+          <div class="tw" id="finCatEgrTbl"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DEVENGAMIENTO -->
+  <div class="page" id="pg-devengamiento">
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-title">Procesar Devengamiento</div>
+      <div class="card-sub">Genera cargos de cuota mensual para afiliados activos</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+        <select id="devA" style="width:105px"><option value="2026" selected>2026</option><option value="2025">2025</option></select>
+        <select id="devM" style="width:125px">
+          <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
+          <option value="4" selected>Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
+          <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
+          <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+        </select>
+        <button class="btn btn-p" onclick="procesarDev()">▶ Procesar</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Historial de Devengamientos</div>
+      <div class="tw" id="devTbl"><div class="loading"><div class="ms"></div></div></div>
+    </div>
+  </div>
+
+  <!-- CRM -->
+  <div class="page" id="pg-crm">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+        <div><div class="card-title">CRM — Gestiones</div><div class="card-sub">Seguimiento y atención de afiliados</div></div>
+        <button class="btn btn-p" onclick="abrirCRM()">+ Nueva Gestión</button>
+      </div>
+      <div class="tw" id="crmTbl"><div class="loading"><div class="ms"></div></div></div>
+    </div>
+  </div>
+
+  <!-- VENDEDORES -->
+  <div class="page" id="pg-vendedores">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+        <div><div class="card-title">Vendedores</div><div class="card-sub">Gestión de vendedores y configuración de comisiones por plan</div></div>
+        <button class="btn btn-p" onclick="abrirVendedor()">+ Nuevo Vendedor</button>
+      </div>
+      <div class="tw" id="vendTbl"><div class="loading"><div class="ms"></div></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Configuración de Comisiones</div>
+      <div class="card-sub">Porcentaje de comisión por vendedor y plan — se aplica sobre el valor de cuota</div>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+        <button class="btn btn-gold" onclick="abrirConfigComision()">+ Configurar Comisión</button>
+      </div>
+      <div class="tw" id="comCfgTbl"><div class="loading"><div class="ms"></div></div></div>
+    </div>
+  </div>
+
+  <!-- LIQUIDACIÓN COMISIONES -->
+  <div class="page" id="pg-comisiones">
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-title">Liquidación de Comisiones</div>
+      <div class="card-sub">Calcula y registra las comisiones de vendedores por período de alta de afiliados</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-top:16px">
+        <div class="fg" style="min-width:120px">
+          <label>Año</label>
+          <select id="liqA" style="width:110px"><option value="2026" selected>2026</option><option value="2025">2025</option></select>
+        </div>
+        <div class="fg" style="min-width:140px">
+          <label>Mes</label>
+          <select id="liqM" style="width:130px">
+            <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
+            <option value="4" selected>Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
+            <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
+            <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+          </select>
+        </div>
+        <div class="fg" style="min-width:180px">
+          <label>Vendedor (opcional)</label>
+          <select id="liqVend" style="width:180px"><option value="">Todos los vendedores</option></select>
+        </div>
+        <button class="btn btn-p" onclick="calcularLiquidacion()">🔍 Calcular Comisiones</button>
+        <button class="btn btn-gold" onclick="procesarLiquidacion()" id="btnProcLiq" style="display:none">💾 Registrar Liquidación</button>
+      </div>
+      <div id="liqPreview" style="margin-top:16px"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Historial de Liquidaciones</div>
+      <div class="card-sub">Liquidaciones registradas por período</div>
+      <div class="tw" id="liqTbl"><div class="loading"><div class="ms"></div></div></div>
+    </div>
+  </div>
+
+  <!-- INFORMES -->
+  <div class="page" id="pg-informes">
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title" style="margin-bottom:4px">📥 Descargar Reportes Excel</div>
+      <div class="card-sub" style="margin-bottom:16px">Generación directa desde la base de datos con formato Cuidalma</div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px">
+        <div style="border:1.5px solid var(--lg);border-radius:10px;padding:18px;display:flex;align-items:center;gap:14px">
+          <div style="font-size:36px;flex-shrink:0">👥</div>
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:14px;margin-bottom:3px">Listado de Afiliados</div>
+            <div style="font-size:12px;color:var(--gray);margin-bottom:10px">Padrón completo con plan, estado y cuota mensual</div>
+            <button class="btn btn-p btn-sm" onclick="xlsAfiliados()" id="btnXlsAf">⬇ Descargar Excel</button>
+          </div>
+        </div>
+        <div style="border:1.5px solid var(--lg);border-radius:10px;padding:18px;display:flex;align-items:center;gap:14px">
+          <div style="font-size:36px;flex-shrink:0">📋</div>
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:14px;margin-bottom:3px">Estado de Cuenta</div>
+            <div style="font-size:12px;color:var(--gray);margin-bottom:10px">Listado de afiliados con saldo deudor — DNI, período, vencimiento y monto</div>
+            <button class="btn btn-p btn-sm" onclick="xlsEstadoCuenta()" id="btnXlsCC">⬇ Descargar Excel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
+      <div class="card" style="cursor:pointer" onclick="genInforme('padron')">
+        <div style="font-size:24px;margin-bottom:6px">👥</div>
+        <div class="card-title" style="font-size:16px">Padrón de Afiliados</div>
+        <div class="card-sub" style="margin-bottom:0">Listado completo con estado y plan</div>
+      </div>
+      <div class="card" style="cursor:pointer" onclick="genInforme('morosos')">
+        <div style="font-size:24px;margin-bottom:6px">⚠️</div>
+        <div class="card-title" style="font-size:16px">Afiliados Morosos</div>
+        <div class="card-sub" style="margin-bottom:0">Con saldo deudor en cuenta corriente</div>
+      </div>
+      <div class="card" style="cursor:pointer" onclick="genInforme('cobros')">
+        <div style="font-size:24px;margin-bottom:6px">💰</div>
+        <div class="card-title" style="font-size:16px">Recaudación</div>
+        <div class="card-sub" style="margin-bottom:0">Cobros acreditados por período</div>
+      </div>
+      <div class="card" style="cursor:pointer" onclick="genInforme('estado_resultados')">
+        <div style="font-size:24px;margin-bottom:6px">📊</div>
+        <div class="card-title" style="font-size:16px">Estado de Resultados</div>
+        <div class="card-sub" style="margin-bottom:0">Ingresos, egresos y resultado neto</div>
+      </div>
+      <div class="card" style="cursor:pointer" onclick="genInforme('prestadores')">
+        <div style="font-size:24px;margin-bottom:6px">🏥</div>
+        <div class="card-title" style="font-size:16px">Red de Prestadores</div>
+        <div class="card-sub" style="margin-bottom:0">Cartilla por segmento y estado</div>
+      </div>
+      <div class="card" style="cursor:pointer" onclick="genInforme('comisiones')">
+        <div style="font-size:24px;margin-bottom:6px">💼</div>
+        <div class="card-title" style="font-size:16px">Comisiones</div>
+        <div class="card-sub" style="margin-bottom:0">Liquidaciones por vendedor y período</div>
+      </div>
+    </div>
+    <div class="card" id="infResult" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div class="card-title" id="infTitulo"></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-s btn-sm" onclick="window.print()">🖨 Imprimir</button>
+          <button class="btn btn-s btn-sm" onclick="document.getElementById('infResult').style.display='none'">✕ Cerrar</button>
+        </div>
+      </div>
+      <div class="tw" id="infTabla"></div>
+    </div>
+  </div>
+
+  <!-- USUARIOS -->
+  <div class="page" id="pg-usuarios">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+        <div><div class="card-title">Usuarios del Sistema</div><div class="card-sub">Accesos y roles</div></div>
+        <button class="btn btn-p" onclick="openM('mUsr')">+ Nuevo Usuario</button>
+      </div>
+      <div class="tw" id="usrTbl"><div class="loading"><div class="ms"></div></div></div>
+    </div>
+  </div>
+</div><!-- /main -->
+</div><!-- /app -->
+
+<!-- MODALES -->
+<div class="mo" id="mAf"><div class="modal">
+  <div class="modal-title" id="mAfT">Afiliado</div><div class="modal-sub">Datos del afiliado</div>
+  <input type="hidden" id="af_id">
+  <div class="fgrid">
+    <div class="fg"><label>Apellido *</label><input id="af_ap" placeholder="GARCIA"></div>
+    <div class="fg"><label>Nombre *</label><input id="af_nm" placeholder="Juan Carlos"></div>
+    <div class="fg"><label>DNI *</label><input id="af_dni"></div>
+    <div class="fg"><label>F. Nacimiento</label><input id="af_fn" type="date"></div>
+    <div class="fg"><label>Plan *</label><select id="af_pl"><option value="">—</option></select></div>
+    <div class="fg"><label>Estado</label>
+      <select id="af_est"><option value="activo">Activo</option><option value="moroso">Moroso</option>
+      <option value="suspendido">Suspendido</option><option value="baja">Baja</option></select></div>
+    <div class="fg"><label>Vendedor / Productor</label>
+      <select id="af_vend"><option value="">Sin vendedor asignado</option></select></div>
+    <div class="fg"><label>Fecha de Alta</label><input id="af_falta" type="date"></div>
+    <div class="fg"><label>Teléfono</label><input id="af_tel"></div>
+    <div class="fg"><label>Email</label><input id="af_em" type="email"></div>
+    <div class="fg"><label>Medio de Pago</label>
+      <select id="af_mp"><option value="Débito Automático">Débito Automático</option>
+      <option value="Transferencia">Transferencia</option><option value="Efectivo">Efectivo</option></select></div>
+    <div class="fg"><label>Grupo / Empresa</label><input id="af_gr" placeholder="Individual"></div>
+    <div class="fg s2"><label>Dirección</label><input id="af_dir"></div>
+  </div>
+  <div class="mfoot">
+    <button class="btn btn-s" onclick="closeM('mAf')">Cancelar</button>
+    <button class="btn btn-p" onclick="guardarAf()">Guardar</button>
+  </div>
+</div></div>
+
+<div class="mo" id="mPlan"><div class="modal">
+  <div class="modal-title" id="mPlT">Plan de Salud</div><div class="modal-sub">Datos del plan</div>
+  <input type="hidden" id="pl_id">
+  <div class="fgrid">
+    <div class="fg"><label>Nombre *</label><input id="pl_nm" placeholder="NUCLEO"></div>
+    <div class="fg"><label>Estado</label>
+      <select id="pl_est"><option value="vigente">Vigente</option><option value="suspendido">Suspendido</option></select></div>
+    <div class="fg"><label>Cuota Titular *</label><input id="pl_ct" type="number" step="0.01" placeholder="35000"></div>
+    <div class="fg"><label>Cuota Adherente</label><input id="pl_ca" type="number" step="0.01" placeholder="0"></div>
+    <div class="fg"><label>Cobertura %</label><input id="pl_cov" type="number" placeholder="80" min="0" max="100"></div>
+    <div class="fg"><label>Vigente Desde</label><input id="pl_vd" type="date"></div>
+    <div class="fg s2"><label>Descripción / Cobertura</label><textarea id="pl_desc" rows="2"></textarea></div>
+  </div>
+  <div class="mfoot">
+    <button class="btn btn-s" onclick="closeM('mPlan')">Cancelar</button>
+    <button class="btn btn-p" onclick="guardarPlan()">Guardar</button>
+  </div>
+</div></div>
+
+<div class="mo" id="mPrest"><div class="modal">
+  <div class="modal-title" id="mPrT">Prestador</div><div class="modal-sub">Datos del prestador médico</div>
+  <input type="hidden" id="pr_id">
+  <div class="fgrid">
+    <div class="fg s2"><label>Razón Social *</label><input id="pr_rs"></div>
+    <div class="fg"><label>Especialidad</label><input id="pr_esp" placeholder="Ej: Cardiología"></div>
+    <div class="fg"><label>Tipo *</label>
+      <select id="pr_tp">
+        <option value="profesional">Profesional</option><option value="clinica">Clínica / Sanatorio</option>
+        <option value="centro_medico">Centro Médico</option><option value="laboratorio">Laboratorio</option>
+        <option value="farmacia">Farmacia</option><option value="optica">Óptica</option><option value="otro">Otro</option>
+      </select></div>
+    <div class="fg"><label>Segmento Geográfico *</label>
+      <select id="pr_seg">
+        <option value="San Miguel de Tucumán">San Miguel de Tucumán</option>
+        <option value="Yerba Buena">Yerba Buena</option><option value="Alderetes">Alderetes</option>
+        <option value="Tafi Viejo">Tafi Viejo</option><option value="Las Talitas">Las Talitas</option>
+        <option value="Concepción">Concepción</option><option value="Aguilares">Aguilares</option>
+        <option value="Otro">Otro</option>
+      </select></div>
+    <div class="fg s2"><label>Dirección</label><input id="pr_dir" placeholder="Calle y número"></div>
+    <div class="fg"><label>Teléfono</label><input id="pr_tel"></div>
+    <div class="fg"><label>Email</label><input id="pr_em" type="email"></div>
+    <div class="fg"><label>CUIT</label><input id="pr_cuit"></div>
+    <div class="fg"><label>Copago $</label><input id="pr_cop" type="number" placeholder="0"></div>
+    <div class="fg"><label>Estado</label>
+      <select id="pr_est"><option value="activo">Activo</option><option value="inactivo">Inactivo</option></select></div>
+  </div>
+  <div class="mfoot">
+    <button class="btn btn-s" onclick="closeM('mPrest')">Cancelar</button>
+    <button class="btn btn-p" onclick="guardarPrest()">Guardar</button>
+  </div>
+</div></div>
+
+<div class="mo" id="mAcu"><div class="modal">
+  <div class="modal-title" id="mAcT">Acuerdo</div><div class="modal-sub">Condiciones del acuerdo con el prestador</div>
+  <input type="hidden" id="ac_id">
+  <div class="fgrid">
+    <div class="fg s2"><label>Prestador *</label><select id="ac_pr"><option value="">Seleccionar…</option></select></div>
+    <div class="fg"><label>Tipo *</label>
+      <select id="ac_tp"><option value="capita">Per cápita</option><option value="prestacion">Por prestación</option>
+      <option value="modulo">Por módulo</option><option value="mixto">Mixto</option></select></div>
+    <div class="fg"><label>Cobertura %</label><input id="ac_cov" type="number" placeholder="85" min="0" max="100"></div>
+    <div class="fg"><label>Valor Cápita $</label><input id="ac_vc" type="number" placeholder="0"></div>
+    <div class="fg"><label>Monto Mensual Est. $</label><input id="ac_mm" type="number" placeholder="0"></div>
+    <div class="fg"><label>Estado</label>
+      <select id="ac_est"><option value="vigente">Vigente</option><option value="vencido">Vencido</option>
+      <option value="suspendido">Suspendido</option><option value="renegoc">En Renegociación</option></select></div>
+    <div class="fg"><label>Vigente Desde *</label><input id="ac_vd" type="date"></div>
+    <div class="fg"><label>Vigente Hasta</label><input id="ac_vh" type="date"></div>
+    <div class="fg s2"><label>Notas</label><textarea id="ac_notas" rows="2"></textarea></div>
+  </div>
+  <div class="mfoot">
+    <button class="btn btn-s" onclick="closeM('mAcu')">Cancelar</button>
+    <button class="btn btn-p" onclick="guardarAcu()">Guardar</button>
+  </div>
+</div></div>
+
+<div class="mo" id="mCob"><div class="modal">
+  <div class="modal-title">Registrar Cobro</div>
+  <div class="modal-sub">El cobro actualiza automáticamente cuenta corriente y gestión financiera</div>
+  <div class="fgrid">
+    <div class="fg s2"><label>Afiliado *</label><select id="co_af"><option value="">—</option></select></div>
+    <div class="fg"><label>Importe *</label><input id="co_imp" type="number" step="0.01"></div>
+    <div class="fg"><label>Fecha *</label><input id="co_fch" type="date"></div>
+    <div class="fg"><label>Período *</label>
+      <div style="display:flex;gap:6px">
+        <select id="co_per_mes" style="flex:1">
+          <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
+          <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
+          <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
+          <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+        </select>
+        <select id="co_per_anio" style="width:82px">
+          <option value="2024">2024</option><option value="2025">2025</option>
+          <option value="2026" selected>2026</option><option value="2027">2027</option>
+        </select>
+      </div>
+    </div>
+    <div class="fg"><label>Medio de Pago</label>
+      <select id="co_mp"><option value="Débito Automático">Débito Automático</option>
+      <option value="Transferencia">Transferencia</option><option value="Efectivo">Efectivo</option>
+      <option value="Transferencia Bancaria">Transferencia Bancaria</option></select></div>
+    <div class="fg"><label>Estado</label>
+      <select id="co_est"><option value="acreditado">Acreditado</option><option value="en_camara">En Cámara</option></select></div>
+    <div class="fg s2"><label>Notas</label><input id="co_nota" placeholder="Opcional"></div>
+  </div>
+  <div class="mfoot">
+    <button class="btn btn-s" onclick="closeM('mCob')">Cancelar</button>
+    <button class="btn btn-p" onclick="guardarCob()">Registrar</button>
+  </div>
+</div></div>
+
+<div class="mo" id="mTx"><div class="modal">
+  <div class="modal-title" id="mTxT">Nueva Transacción</div>
+  <div class="modal-sub" id="mTxS">Registre el movimiento financiero</div>
+  <input type="hidden" id="tx_id">
+  <input type="hidden" id="tx_tipo">
+  <div class="fgrid">
+    <div class="fg"><label>Categoría *</label><select id="tx_cat"><option value="">—</option></select></div>
+    <div class="fg"><label>Importe *</label><input id="tx_imp" type="number" step="0.01" placeholder="0.00"></div>
+    <div class="fg"><label>Fecha *</label><input id="tx_fch" type="date"></div>
+    <div class="fg"><label>Período *</label>
+      <div style="display:flex;gap:6px">
+        <select id="tx_per_mes" style="flex:1">
+          <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
+          <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
+          <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
+          <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+        </select>
+        <select id="tx_per_anio" style="width:82px">
+          <option value="2024">2024</option><option value="2025">2025</option>
+          <option value="2026" selected>2026</option><option value="2027">2027</option>
+        </select>
+      </div>
+    </div>
+    <div class="fg"><label>Estado</label>
+      <select id="tx_est"><option value="pagado">Pagado / Acreditado</option>
+      <option value="pendiente">Pendiente</option><option value="vencido">Vencido</option></select></div>
+    <div class="fg"><label>Medio de Pago</label>
+      <select id="tx_mp"><option value="Transferencia">Transferencia</option>
+      <option value="Efectivo">Efectivo</option><option value="Cheque">Cheque</option>
+      <option value="Débito Automático">Débito Automático</option></select></div>
+    <div class="fg s2"><label>Concepto *</label><input id="tx_con" placeholder="Descripción del movimiento"></div>
+    <div class="fg"><label>Comprobante / Factura</label><input id="tx_comp" placeholder="Nro. comprobante"></div>
+    <div class="fg"><label>Proveedor / Origen</label><input id="tx_prov" placeholder="Nombre"></div>
+    <div class="fg s2"><label>Notas adicionales</label><input id="tx_nota" placeholder="Opcional"></div>
+  </div>
+  <div class="mfoot">
+    <button class="btn btn-s" onclick="closeM('mTx')">Cancelar</button>
+    <button class="btn btn-p" onclick="guardarTx()">Guardar</button>
+  </div>
+</div></div>
+
+<div class="mo" id="mCRM"><div class="modal">
+  <div class="modal-title">Nueva Gestión CRM</div><div class="modal-sub">Registro de contacto</div>
+  <div class="fgrid">
+    <div class="fg s2"><label>Afiliado *</label><select id="crm_af"><option value="">—</option></select></div>
+    <div class="fg"><label>Tipo *</label>
+      <select id="crm_tp"><option value="Consulta">Consulta</option><option value="Reclamo">Reclamo</option>
+      <option value="Solicitud">Solicitud</option><option value="Alta/Baja">Alta/Baja</option></select></div>
+    <div class="fg"><label>Prioridad</label>
+      <select id="crm_pr"><option value="normal">Normal</option><option value="alta">Alta</option><option value="urgente">Urgente</option></select></div>
+    <div class="fg s2"><label>Asunto *</label><input id="crm_as"></div>
+    <div class="fg s2"><label>Detalle</label><textarea id="crm_det" rows="3"></textarea></div>
+  </div>
+  <div class="mfoot">
+    <button class="btn btn-s" onclick="closeM('mCRM')">Cancelar</button>
+    <button class="btn btn-p" onclick="guardarCRM()">Guardar</button>
+  </div>
+</div></div>
+
+<!-- MODAL VENDEDOR -->
+<div class="mo" id="mVend"><div class="modal">
+  <div class="modal-title" id="mVendT">Vendedor</div><div class="modal-sub">Datos del vendedor / productor</div>
+  <input type="hidden" id="vd_id">
+  <div class="fgrid">
+    <div class="fg"><label>Apellido *</label><input id="vd_ap" placeholder="GONZÁLEZ"></div>
+    <div class="fg"><label>Nombre *</label><input id="vd_nm" placeholder="Carlos"></div>
+    <div class="fg"><label>DNI</label><input id="vd_dni"></div>
+    <div class="fg"><label>Estado</label>
+      <select id="vd_est"><option value="activo">Activo</option><option value="inactivo">Inactivo</option></select></div>
+    <div class="fg"><label>Teléfono</label><input id="vd_tel"></div>
+    <div class="fg"><label>Email</label><input id="vd_em" type="email"></div>
+  </div>
+  <div class="mfoot">
+    <button class="btn btn-s" onclick="closeM('mVend')">Cancelar</button>
+    <button class="btn btn-p" onclick="guardarVendedor()">Guardar</button>
+  </div>
+</div></div>
+
+<!-- MODAL CONFIG COMISIÓN -->
+<div class="mo" id="mComCfg"><div class="modal">
+  <div class="modal-title">Configurar Comisión</div>
+  <div class="modal-sub">Definir porcentaje de comisión para un vendedor y plan específico</div>
+  <input type="hidden" id="cc_id">
+  <div class="fgrid">
+    <div class="fg s2"><label>Vendedor *</label><select id="cc_vend"><option value="">Seleccionar…</option></select></div>
+    <div class="fg s2"><label>Plan *</label><select id="cc_plan"><option value="">Seleccionar…</option></select></div>
+    <div class="fg"><label>Porcentaje de Comisión % *</label><input id="cc_pct" type="number" step="0.01" min="0" max="100" placeholder="10.00"></div>
+    <div class="fg"><label>Vigente Desde</label><input id="cc_desde" type="date"></div>
+    <div class="fg s2"><label>Notas</label><input id="cc_notas" placeholder="Opcional"></div>
+  </div>
+  <div style="background:#e0f2f1;border-radius:8px;padding:12px;margin-top:4px;font-size:12.5px;color:var(--teal-d)">
+    💡 Ejemplo: Si la cuota del plan es $35.000 y la comisión es 10%, el vendedor cobra $3.500 por cada afiliado que ingresa en el período.
+  </div>
+  <div class="mfoot">
+    <button class="btn btn-s" onclick="closeM('mComCfg')">Cancelar</button>
+    <button class="btn btn-p" onclick="guardarComConfig()">Guardar</button>
+  </div>
+</div></div>
+
+<!-- MODAL DETALLE LIQUIDACIÓN -->
+<div class="mo" id="mLiqDet"><div class="modal modal-xl">
+  <div class="modal-title">Detalle de Liquidación</div>
+  <div class="modal-sub" id="mLiqDetSub">Período y vendedor</div>
+  <div id="mLiqDetContent"></div>
+  <div class="mfoot">
+    <button class="btn btn-s" onclick="closeM('mLiqDet')">Cerrar</button>
+    <button class="btn btn-p" onclick="window.print()">🖨 Imprimir</button>
+  </div>
+</div></div>
+
+<div class="mo" id="mDel"><div class="modal" style="max-width:400px">
+  <div class="modal-title">Confirmar eliminación</div>
+  <p style="margin:12px 0 20px;color:var(--gray);font-size:14px" id="mDelMsg">¿Eliminar este registro?</p>
+  <div class="mfoot">
+    <button class="btn btn-s" onclick="closeM('mDel')">Cancelar</button>
+    <button class="btn btn-d" id="mDelOk">Eliminar</button>
+  </div>
+</div></div>
+
+<div class="mo" id="mUsr"><div class="modal">
+  <div class="modal-title">Nuevo Usuario</div><div class="modal-sub">Acceso al sistema</div>
+  <div class="fgrid">
+    <div class="fg"><label>Nombre *</label><input id="us_nm"></div>
+    <div class="fg"><label>Apellido *</label><input id="us_ap"></div>
+    <div class="fg s2"><label>Email *</label><input id="us_em" type="email"></div>
+    <div class="fg"><label>Contraseña *</label><input id="us_pw" type="password" placeholder="Mín. 8 caracteres"></div>
+    <div class="fg"><label>Rol</label>
+      <select id="us_rl"><option value="operador">Operador</option><option value="supervisor">Supervisor</option>
+      <option value="admin">Administrador</option><option value="readonly">Solo Lectura</option></select></div>
+  </div>
+  <div class="mfoot">
+    <button class="btn btn-s" onclick="closeM('mUsr')">Cancelar</button>
+    <button class="btn btn-p" onclick="guardarUsr()">Crear</button>
+  </div>
+</div></div>
+
+<div id="ntf"></div>
+
+<!-- RECIBO DE COBRO -->
+<div class="mo" id="mRecibo"><div class="modal" style="max-width:500px">
+  <div class="modal-title">Recibo de Cobro</div>
+  <div class="modal-sub">Comprobante de pago</div>
+  <div id="reciboContenido"></div>
+  <div class="mfoot">
+    <button class="btn btn-s" onclick="closeM('mRecibo')">Cerrar</button>
+    <button class="btn btn-p" onclick="window.print()">🖨 Imprimir Recibo</button>
+  </div>
+</div></div>
+
+<script>
+const SB_URL = 'https://biaxzvhoolbvjkbuodlv.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYXh6dmhvb2xidmprYnVvZGx2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4MjIxMzIsImV4cCI6MjA4OTM5ODEzMn0.JcR2l0Hrn0i2ZFaZxmXz37YtyO5EigwpixuWkRi69pU';
+const { createClient } = supabase;
+const sb = createClient(SB_URL, SB_KEY);
+
+let currentUser = null, currentProfile = null;
+let allAf = [], allPlanes = [], allPrest = [], allFinCat = [], allVendedores = [];
+let _allCobros = [];
+let _liqData = null; // datos de liquidación calculados pero no guardados
+
+const fmt  = n => Number(n||0).toLocaleString('es-AR',{style:'currency',currency:'ARS',maximumFractionDigits:0});
+const fmtD = d => { if(!d) return '—'; try{ return new Date(d+'T12:00:00').toLocaleDateString('es-AR'); }catch(e){return d;} };
+const meses= ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const mesesLargo=['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const _now = new Date();
+const periodoActual = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][_now.getMonth()+1] + ' ' + _now.getFullYear();
+
+const BS = {
+  activo:'bg',moroso:'br',suspendido:'bo',baja:'by',
+  vigente:'bg',vencido:'br',renegoc:'bo',
+  acreditado:'bg',en_camara:'bo',rechazado:'br',
+  pagado:'bg',pendiente:'bo',anulado:'by',
+  ingreso:'bt',egreso:'bp',abierto:'br',en_curso:'bo',cerrado:'by',
+  normal:'by',alta:'bo',urgente:'br',procesado:'bg',
+  inactivo:'by',debito:'br',credito:'bg',
+};
+const badge = (v,label) => `<span class="badge ${BS[v]||'by'}">${label||v||'—'}</span>`;
+
+function toast(msg,type='ok'){
+  const el = document.createElement('div');
+  el.className = 'notif'+(type==='err'?' err':type==='wrn'?' wrn':'');
+  el.innerHTML = `<span>${type==='err'?'✗':type==='wrn'?'⚠':'✓'}</span><span>${msg}</span>`;
+  document.getElementById('ntf').appendChild(el);
+  setTimeout(()=>el.remove(), 4500);
+}
+
+function openM(id){ document.getElementById(id).classList.add('show'); }
+function closeM(id){ document.getElementById(id).classList.remove('show'); }
+document.querySelectorAll('.mo').forEach(o => o.addEventListener('click', e=>{ if(e.target===o) o.classList.remove('show'); }));
+
+function confirmar(msg, fn){
+  document.getElementById('mDelMsg').textContent = msg;
+  document.getElementById('mDelOk').onclick = ()=>{ closeM('mDel'); fn(); };
+  openM('mDel');
+}
+
+// ══ AUTH ══
+async function initAuth(){
+  const {data:{session}} = await sb.auth.getSession();
+  if(!session){ window.location.href='login.html'; return; }
+  currentUser = session.user;
+  let profile = null;
+  try{ const c=sessionStorage.getItem('cuidalma_user'); if(c){const p=JSON.parse(c);if(p.id===currentUser.id)profile=p;} }catch(e){}
+  if(!profile){ const{data}=await sb.from('user_profiles').select('*').eq('id',currentUser.id).single(); profile=data; }
+  currentProfile = profile;
+  if(profile){
+    const ini=((profile.nombre||'?')[0]+(profile.apellido||'?')[0]).toUpperCase();
+    document.getElementById('uAv').textContent=ini;
+    document.getElementById('uNm').textContent=(profile.nombre||'')+' '+(profile.apellido||'');
+    const rl={admin:'Administrador',supervisor:'Supervisor',operador:'Operador',readonly:'Solo Lectura'};
+    document.getElementById('uRl').textContent=rl[profile.rol]||profile.rol||'—';
+    if(profile.rol==='admin') document.getElementById('adminSec').style.display='block';
+  }
+  const g=document.getElementById('authGuard');
+  g.classList.add('hide'); setTimeout(()=>g.style.display='none',400);
+  document.getElementById('app').classList.add('show');
+  sb.from('user_profiles').update({ultimo_acceso:new Date().toISOString()}).eq('id',currentUser.id).then(()=>{});
+  document.getElementById('periodoLbl').textContent = periodoActual;
+  loadDashboard();
+}
+async function logout(){ await sb.auth.signOut(); sessionStorage.removeItem('cuidalma_user'); window.location.href='login.html'; }
+sb.auth.onAuthStateChange((e,s)=>{ if(e==='SIGNED_OUT') window.location.href='login.html'; });
+
+// ══ NAV ══
+const titles={dashboard:'Dashboard',afiliados:'Afiliados',planes:'Planes',prestadores:'Red de Prestadores',
+  acuerdos:'Acuerdos',cobros:'Cobros',cuentas:'Cuentas Corrientes',finanzas:'Gestión Financiera',
+  devengamiento:'Devengamiento',crm:'CRM — Gestiones',vendedores:'Vendedores',
+  comisiones:'Liquidación de Comisiones',informes:'Informes',usuarios:'Usuarios'};
+
+const loaders={afiliados:loadAf,planes:loadPlanes,prestadores:loadPrest,acuerdos:loadAcu,
+  cobros:loadCob,cuentas:loadCC,finanzas:loadFin,devengamiento:loadDev,crm:loadCRM,
+  vendedores:loadVendedores,comisiones:loadComisiones,usuarios:loadUsr};
+
+function nav(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
+  document.getElementById('pg-'+id).classList.add('active');
+  document.querySelectorAll('.ni').forEach(n=>{ if(n.getAttribute('onclick')===`nav('${id}')`) n.classList.add('active'); });
+  document.getElementById('tbTitle').textContent=titles[id]||id;
+  document.getElementById('tbAct').innerHTML='';
+  if(loaders[id]) loaders[id]();
+}
+
+// ══ DASHBOARD ══
+async function loadDashboard(){
+  const [rAf,rCob,rPr,rCC,rCRM,rFin,rLiq] = await Promise.all([
+    sb.from('afiliados').select('estado,plan_id,planes(nombre,cuota_titular)'),
+    sb.from('cobros').select('importe,estado,periodo'),
+    sb.from('prestadores').select('estado'),
+    sb.from('cuenta_corriente').select('afiliado_id,importe,tipo'),
+    sb.from('crm_gestiones').select('estado,prioridad'),
+    sb.from('fin_transacciones').select('tipo,importe,estado,periodo,fecha'),
+    sb.from('liquidaciones_comision').select('vendedor_nombre,total_comision,estado,periodo').eq('estado','pendiente'),
+  ]);
+
+  const afs  = rAf.data||[];
+  const cobs = rCob.data||[];
+  const prs  = rPr.data||[];
+  const ccs  = rCC.data||[];
+  const crms = rCRM.data||[];
+  const fins = rFin.data||[];
+  const liqs = rLiq.data||[];
+
+  const afAct = afs.filter(a=>a.estado==='activo').length;
+  const afMor = afs.filter(a=>a.estado==='moroso').length;
+  const prAct = prs.filter(p=>p.estado==='activo').length;
+  const cobMes = cobs.filter(c=>c.estado==='acreditado').reduce((s,c)=>s+Number(c.importe||0),0);
+  const finMes = fins.filter(f=>f.periodo===periodoActual);
+  const ingMes = finMes.filter(f=>f.tipo==='ingreso'&&f.estado!=='anulado').reduce((s,f)=>s+Number(f.importe||0),0);
+  const egrMes = finMes.filter(f=>f.tipo==='egreso' &&f.estado!=='anulado').reduce((s,f)=>s+Number(f.importe||0),0);
+  const ingTotal = fins.filter(f=>f.tipo==='ingreso'&&f.estado!=='anulado').reduce((s,f)=>s+Number(f.importe||0),0);
+  const egrTotal = fins.filter(f=>f.tipo==='egreso' &&f.estado!=='anulado').reduce((s,f)=>s+Number(f.importe||0),0);
+  const ingShow = ingMes || ingTotal;
+  const egrShow = egrMes || egrTotal;
+  const resNeto = ingShow - egrShow;
+
+  const saldoMap = {};
+  ccs.forEach(r=>{
+    if(!saldoMap[r.afiliado_id]) saldoMap[r.afiliado_id]=0;
+    if(r.tipo==='debito')  saldoMap[r.afiliado_id]+=Number(r.importe||0);
+    if(r.tipo==='credito') saldoMap[r.afiliado_id]-=Number(r.importe||0);
+  });
+  const conDeuda = Object.values(saldoMap).filter(s=>s>0).length;
+
+  document.getElementById('kpiGrid').innerHTML = `
+    <div class="kpi k-teal"><div class="kpi-lbl">Afiliados Activos</div><div class="kpi-val">${afAct}</div>
+      <div class="kpi-sub">${afMor} morosos · ${afs.length} totales</div><div class="kpi-trend">👥</div></div>
+    <div class="kpi k-gold"><div class="kpi-lbl">Total Recaudado</div>
+      <div class="kpi-val" style="font-size:26px">${fmt(cobMes)}</div>
+      <div class="kpi-sub">${cobs.filter(c=>c.estado==='acreditado').length} cobros acreditados</div><div class="kpi-trend">💰</div></div>
+    <div class="kpi k-${resNeto>=0?'green':'red'}"><div class="kpi-lbl">Resultado Financiero</div>
+      <div class="kpi-val" style="font-size:24px">${fmt(resNeto)}</div>
+      <div class="kpi-sub">${fmt(ingShow)} ing · ${fmt(egrShow)} egr</div><div class="kpi-trend">📊</div></div>
+    <div class="kpi k-${conDeuda>0?'red':'green'}"><div class="kpi-lbl">Con Saldo Deudor</div>
+      <div class="kpi-val">${conDeuda}</div>
+      <div class="kpi-sub">${prAct} prestadores activos</div><div class="kpi-trend">⚠️</div></div>`;
+
+  const perMap={};
+  fins.filter(f=>f.estado!=='anulado').forEach(f=>{
+    if(!perMap[f.periodo]) perMap[f.periodo]={ing:0,egr:0};
+    if(f.tipo==='ingreso') perMap[f.periodo].ing+=Number(f.importe||0);
+    else perMap[f.periodo].egr+=Number(f.importe||0);
+  });
+  const perRows=Object.entries(perMap).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,6);
+  document.getElementById('dbEstRes').innerHTML = perRows.length ? `
+    <table><thead><tr><th>Período</th><th>Ingresos</th><th>Egresos</th><th>Resultado</th></tr></thead>
+    <tbody>${perRows.map(([p,v])=>{const r=v.ing-v.egr; return `
+      <tr><td style="font-weight:500">${p}</td>
+      <td style="color:var(--success)">${fmt(v.ing)}</td>
+      <td style="color:var(--danger)">${fmt(v.egr)}</td>
+      <td style="font-weight:600;color:${r>=0?'var(--success)':'var(--danger)'}">${fmt(r)}</td></tr>`;}).join('')}
+    </tbody></table>` : '<div class="empty">Sin transacciones financieras aún.</div>';
+
+  const planDist={};
+  afs.filter(a=>a.estado==='activo').forEach(a=>{
+    const n=a.planes?.nombre||'Sin plan';
+    const q=Number(a.planes?.cuota_titular||0);
+    if(!planDist[n]) planDist[n]={count:0,cuota:q};
+    planDist[n].count++;
+  });
+  const tot=Object.values(planDist).reduce((s,p)=>s+p.count,0);
+  const cls=['var(--teal)','var(--sky)','var(--gold)','#9b59b6','#e74c3c'];
+  document.getElementById('dbPlanes').innerHTML = Object.entries(planDist).map(([n,p],i)=>`
+    <div class="bar-row">
+      <div class="bar-hdr"><span style="font-weight:500">${n}</span><span style="color:var(--gray)">${p.count} · ${fmt(p.cuota)}</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${tot?(p.count/tot*100).toFixed(1):0}%;background:${cls[i%cls.length]}"></div></div>
+    </div>`).join('') || '<div class="empty">Sin planes asignados</div>';
+
+  const topDeud=Object.entries(saldoMap).filter(([,s])=>s>0).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  if(topDeud.length){
+    const afIds=topDeud.map(([id])=>id);
+    const {data:afData}=await sb.from('afiliados').select('id,nombre,apellido').in('id',afIds);
+    const afMap={}; (afData||[]).forEach(a=>afMap[a.id]=a);
+    document.getElementById('dbPend').innerHTML=`<table><thead><tr><th>Afiliado</th><th>Saldo Deudor</th></tr></thead>
+      <tbody>${topDeud.map(([id,s])=>`<tr>
+        <td style="font-weight:500">${afMap[id]?afMap[id].apellido+', '+afMap[id].nombre:'—'}</td>
+        <td style="color:var(--danger);font-weight:600">${fmt(s)}</td></tr>`).join('')}</tbody></table>`;
+  } else { document.getElementById('dbPend').innerHTML='<div class="empty">✅ Sin saldos deudores</div>'; }
+
+  // Flujo de caja — últimos 7 días
+  const hace7 = new Date(); hace7.setDate(hace7.getDate()-6);
+  const hace7Str = hace7.toISOString().split('T')[0];
+  const cobsFlujo = cobs.filter(c => c.estado === 'acreditado' && c.fecha_cobro >= hace7Str);
+  const flujoMap = {};
+  cobsFlujo.forEach(c => {
+    const d = c.fecha_cobro || c.fecha;
+    if(!d) return;
+    if(!flujoMap[d]) flujoMap[d] = 0;
+    flujoMap[d] += Number(c.importe || 0);
+  });
+  const flujoRows = Object.entries(flujoMap).sort((a,b) => a[0].localeCompare(b[0]));
+  if(flujoRows.length) {
+    document.getElementById('dbFlujo').innerHTML = '<table><thead><tr><th>Fecha</th><th style="text-align:right">Cobros del día</th></tr></thead><tbody>' +
+      flujoRows.map(([d,v]) => '<tr><td>'+fmtD(d)+'</td><td style="text-align:right;font-weight:600;color:var(--success)">'+fmt(v)+'</td></tr>').join('') +
+      '</tbody><tfoot><tr><td style="font-weight:700;color:var(--gray);padding:8px 13px">TOTAL 7 DÍAS</td>' +
+      '<td style="text-align:right;font-weight:800;color:var(--teal);font-family:'Cormorant Garamond',serif;font-size:18px;padding:8px 13px">' +
+      fmt(flujoRows.reduce((s,[,v])=>s+v,0)) + '</td></tr></tfoot></table>';
+  } else {
+    document.getElementById('dbFlujo').innerHTML = '<div class="empty">Sin cobros en los últimos 7 días</div>';
+  }
+
+  // Dashboard comisiones pendientes
+  const totalComPend = liqs.reduce((s,l)=>s+Number(l.total_comision||0),0);
+  const vendPend = [...new Set(liqs.map(l=>l.vendedor_nombre))];
+  document.getElementById('dbComisiones').innerHTML = liqs.length ? `
+    <div style="margin-bottom:12px;padding:12px;background:#fff8e1;border-radius:8px;border:1px solid #ffe082">
+      <div style="font-size:11px;color:#f57c00;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Total Pendiente</div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:600;color:#e67e22">${fmt(totalComPend)}</div>
+      <div style="font-size:11.5px;color:var(--gray);margin-top:2px">${vendPend.length} vendedor(es) con comisiones a pagar</div>
+    </div>
+    <table><thead><tr><th>Vendedor</th><th>Período</th><th>Comisión</th></tr></thead>
+    <tbody>${liqs.map(l=>`<tr>
+      <td style="font-weight:500">${l.vendedor_nombre||'—'}</td>
+      <td>${l.periodo}</td>
+      <td style="font-weight:600;color:var(--warning)">${fmt(l.total_comision)}</td>
+    </tr>`).join('')}</tbody></table>
+    <button class="btn btn-sm btn-gold" style="margin-top:10px;width:100%" onclick="nav('comisiones')">Ver Liquidaciones →</button>` :
+    '<div class="empty">✅ Sin comisiones pendientes</div>';
+}
+
+// ══ AFILIADOS ══
+async function loadAf(){
+  if(!allVendedores.length){ const{data}=await sb.from('vendedores').select('id,nombre,apellido').eq('estado','activo').order('apellido'); allVendedores=data||[]; }
+  const{data}=await sb.from('afiliados').select('*,planes(nombre,cuota_titular),vendedores(nombre,apellido)').order('apellido');
+  allAf=data||[];
+  const planes=[...new Set(allAf.map(a=>a.planes?.nombre).filter(Boolean))];
+  const sel=document.getElementById('afPln');
+  sel.innerHTML='<option value="">Todos los planes</option>'+planes.map(p=>`<option>${p}</option>`).join('');
+  const selV=document.getElementById('afVend');
+  selV.innerHTML='<option value="">Todos los vendedores</option>'+allVendedores.map(v=>`<option value="${v.id}">${v.apellido}, ${v.nombre}</option>`).join('');
+  renderAf();
+}
+function renderAf(){
+  const q=(document.getElementById('afQ')?.value||'').toLowerCase();
+  const est=document.getElementById('afEst')?.value||'';
+  const pln=document.getElementById('afPln')?.value||'';
+  const vend=document.getElementById('afVend')?.value||'';
+  const list=allAf.filter(a=>{
+    const txt=`${a.apellido} ${a.nombre} ${a.dni} ${a.planes?.nombre||''}`.toLowerCase();
+    return(!q||txt.includes(q))&&(!est||a.estado===est)&&(!pln||a.planes?.nombre===pln)&&(!vend||a.vendedor_id===vend);
+  });
+  document.getElementById('afCnt').textContent=`${list.length} de ${allAf.length} afiliados`;
+  document.getElementById('afTbl').innerHTML = !list.length
+    ? '<div class="empty">Sin resultados</div>'
+    : `<table><thead><tr><th>Nº</th><th>Apellido y Nombre</th><th>DNI</th><th>Plan</th><th>Estado</th><th>Vendedor</th><th>Alta</th><th></th></tr></thead>
+       <tbody>${list.map(a=>`<tr>
+         <td style="color:var(--gray);font-size:11.5px">${a.numero||'—'}</td>
+         <td style="font-weight:500">${a.apellido||''}, ${a.nombre||''}</td>
+         <td>${a.dni||'—'}</td><td>${a.planes?.nombre||'—'}</td>
+         <td>${badge(a.estado)}</td>
+         <td style="font-size:12px;color:var(--gray)">${a.vendedores?a.vendedores.apellido+', '+a.vendedores.nombre:'—'}</td>
+         <td>${fmtD(a.fecha_alta)}</td>
+         <td style="white-space:nowrap">
+           <button class="btn-ico" onclick="editAf('${a.id}')">✏</button>
+           <button class="btn-ico del" onclick="eliminarAf('${a.id}','${(a.apellido||'')+', '+(a.nombre||'')}')">🗑</button>
+         </td></tr>`).join('')}</tbody></table>`;
+}
+async function abrirAfiliado(){
+  if(!allPlanes.length){const{data}=await sb.from('planes').select('id,nombre').order('nombre');allPlanes=data||[];}
+  if(!allVendedores.length){const{data}=await sb.from('vendedores').select('id,nombre,apellido').eq('estado','activo').order('apellido');allVendedores=data||[];}
+  document.getElementById('af_pl').innerHTML='<option value="">Seleccionar…</option>'+
+    allPlanes.map(p=>`<option value="${p.id}">${p.nombre}</option>`).join('');
+  document.getElementById('af_vend').innerHTML='<option value="">Sin vendedor asignado</option>'+
+    allVendedores.map(v=>`<option value="${v.id}">${v.apellido}, ${v.nombre}</option>`).join('');
+  ['af_id','af_ap','af_nm','af_dni','af_fn','af_tel','af_em','af_gr','af_dir'].forEach(x=>document.getElementById(x).value='');
+  document.getElementById('af_est').value='activo';
+  document.getElementById('af_mp').value='Débito Automático';
+  document.getElementById('af_falta').value=new Date().toISOString().split('T')[0];
+  document.getElementById('mAfT').textContent='Nuevo Afiliado';
+  openM('mAf');
+}
+async function editAf(id){
+  await abrirAfiliado();
+  const{data:a}=await sb.from('afiliados').select('*').eq('id',id).single();
+  if(!a)return;
+  document.getElementById('af_id').value=a.id;
+  document.getElementById('af_ap').value=a.apellido||'';
+  document.getElementById('af_nm').value=a.nombre||'';
+  document.getElementById('af_dni').value=a.dni||'';
+  document.getElementById('af_fn').value=a.fecha_nacimiento||'';
+  document.getElementById('af_pl').value=a.plan_id||'';
+  document.getElementById('af_est').value=a.estado||'activo';
+  document.getElementById('af_vend').value=a.vendedor_id||'';
+  document.getElementById('af_tel').value=a.telefono||'';
+  document.getElementById('af_em').value=a.email||'';
+  document.getElementById('af_mp').value=a.medio_pago||'Débito Automático';
+  document.getElementById('af_gr').value=a.grupo_empresa||'';
+  document.getElementById('af_dir').value=a.direccion||'';
+  document.getElementById('af_falta').value=a.fecha_alta||a.fecha_ingreso_sistema||'';
+  document.getElementById('mAfT').textContent='Editar Afiliado';
+}
+async function guardarAf(){
+  const id=document.getElementById('af_id').value;
+  const apellido=document.getElementById('af_ap').value.trim().toUpperCase();
+  const nombre=document.getElementById('af_nm').value.trim().toUpperCase();
+  const dni=document.getElementById('af_dni').value.trim();
+  const plan_id=document.getElementById('af_pl').value;
+  if(!apellido||!nombre||!dni||!plan_id){toast('Complete apellido, nombre, DNI y plan','err');return;}
+  const vendedor_id=document.getElementById('af_vend').value||null;
+  const fecha_alta=document.getElementById('af_falta').value||new Date().toISOString().split('T')[0];
+  const pay={apellido,nombre,dni,plan_id,vendedor_id,
+    estado:document.getElementById('af_est').value,
+    fecha_nacimiento:document.getElementById('af_fn').value||null,
+    telefono:document.getElementById('af_tel').value||null,
+    email:document.getElementById('af_em').value||null,
+    medio_pago:document.getElementById('af_mp').value,
+    grupo_empresa:document.getElementById('af_gr').value||'Individual',
+    direccion:document.getElementById('af_dir').value||null,
+    fecha_alta,fecha_ingreso_sistema:fecha_alta,
+    updated_at:new Date().toISOString()};
+  let err;
+  if(id){({error:err}=await sb.from('afiliados').update(pay).eq('id',id));}
+  else{pay.numero=dni;({error:err}=await sb.from('afiliados').insert(pay));}
+  if(err){toast('Error: '+err.message,'err');return;}
+  toast(id?'Afiliado actualizado':'Afiliado creado');
+  closeM('mAf');loadAf();
+}
+function eliminarAf(id,nom){
+  confirmar(`¿Eliminar el afiliado ${nom}?`,async()=>{
+    const{error}=await sb.from('afiliados').delete().eq('id',id);
+    if(error){toast('Error: '+error.message,'err');return;}
+    toast('Afiliado eliminado');loadAf();
+  });
+}
+
+// ══ PLANES ══
+async function loadPlanes(){
+  const{data}=await sb.from('planes').select('*').order('nombre');
+  document.getElementById('plTbl').innerHTML=`
+    <table><thead><tr><th>Plan</th><th>Cuota Titular</th><th>Cuota Adherente</th><th>Cobertura</th><th>Estado</th><th>Desde</th><th></th></tr></thead>
+    <tbody>${(data||[]).map(p=>`<tr>
+      <td style="font-weight:600;color:var(--teal)">${p.nombre}</td>
+      <td style="font-weight:500">${fmt(p.cuota_titular)}</td>
+      <td>${fmt(p.cuota_adherente)}</td><td>${p.cobertura_pct||80}%</td>
+      <td>${badge(p.estado)}</td><td>${fmtD(p.vigencia_desde)}</td>
+      <td><button class="btn-ico" onclick="editPlan('${p.id}')">✏</button></td>
+    </tr>`).join('')}</tbody></table>`;
+}
+async function abrirPlan(){
+  ['pl_id','pl_nm','pl_ct','pl_ca','pl_cov','pl_vd','pl_desc'].forEach(x=>document.getElementById(x).value='');
+  document.getElementById('pl_cov').value='80';
+  document.getElementById('pl_est').value='vigente';
+  document.getElementById('mPlT').textContent='Nuevo Plan';
+  openM('mPlan');
+}
+async function editPlan(id){
+  const{data:p}=await sb.from('planes').select('*').eq('id',id).single();
+  if(!p)return;
+  document.getElementById('pl_id').value=p.id;
+  document.getElementById('pl_nm').value=p.nombre||'';
+  document.getElementById('pl_est').value=p.estado||'vigente';
+  document.getElementById('pl_ct').value=p.cuota_titular||'';
+  document.getElementById('pl_ca').value=p.cuota_adherente||'';
+  document.getElementById('pl_cov').value=p.cobertura_pct||80;
+  document.getElementById('pl_vd').value=p.vigencia_desde||'';
+  document.getElementById('pl_desc').value=p.descripcion_cob||'';
+  document.getElementById('mPlT').textContent='Editar Plan';
+  openM('mPlan');
+}
+async function guardarPlan(){
+  const id=document.getElementById('pl_id').value;
+  const nombre=document.getElementById('pl_nm').value.trim().toUpperCase();
+  const cuota_titular=parseFloat(document.getElementById('pl_ct').value);
+  if(!nombre||!cuota_titular){toast('Complete nombre y cuota titular','err');return;}
+  const pay={nombre,cuota_titular,
+    cuota_adherente:parseFloat(document.getElementById('pl_ca').value)||0,
+    cobertura_pct:parseInt(document.getElementById('pl_cov').value)||80,
+    estado:document.getElementById('pl_est').value,
+    vigencia_desde:document.getElementById('pl_vd').value||new Date().toISOString().split('T')[0],
+    descripcion_cob:document.getElementById('pl_desc').value||null,
+    updated_at:new Date().toISOString()};
+  let err;
+  if(id){({error:err}=await sb.from('planes').update(pay).eq('id',id));}
+  else{({error:err}=await sb.from('planes').insert(pay));}
+  if(err){toast('Error: '+err.message,'err');return;}
+  toast(id?'Plan actualizado':'Plan creado');closeM('mPlan');loadPlanes();
+}
+
+// ══ PRESTADORES ══
+const SEG_COLORS = {
+  'San Miguel de Tucumán':'#2A7A6B','Yerba Buena':'#2980b9','Alderetes':'#8e44ad',
+  'Tafi Viejo':'#d4991f','Las Talitas':'#c0392b','Concepción':'#27ae60','Aguilares':'#e67e22',
+};
+function tipoLabel(t){
+  const m={'profesional':'Profesional','clinica':'Clínica / Sanatorio','centro_medico':'Centro Médico',
+    'laboratorio':'Laboratorio','farmacia':'Farmacia','optica':'Óptica','otro':'Otro','medico':'Profesional'};
+  return m[t]||t||'—';
+}
+let _prFiltros = {q:'', seg:'', esp:'', est:''};
+
+async function loadPrest(){
+  const{data}=await sb.from('prestadores').select('*').order('segmento').order('especialidades').order('razon_social');
+  allPrest=data||[];
+  renderPrest();
+}
+function renderPrest(){
+  const filtQ  = (document.getElementById('prQ')?.value  ?? _prFiltros.q).toLowerCase();
+  const filtSeg= document.getElementById('prSeg')?.value  ?? _prFiltros.seg;
+  const filtEsp= document.getElementById('prEsp')?.value  ?? _prFiltros.esp;
+  const filtEst= document.getElementById('prEstFilt')?.value ?? _prFiltros.est;
+  _prFiltros = {q:filtQ,seg:filtSeg,esp:filtEsp,est:filtEst};
+  let lista = allPrest.filter(p=>{
+    const txt=`${p.razon_social} ${p.especialidades||''} ${p.zona||''} ${p.segmento||''}`.toLowerCase();
+    return(!filtQ||txt.includes(filtQ))&&
+      (!filtSeg||(p.segmento||p.zona||'Sin segmento')===filtSeg)&&
+      (!filtEsp||p.especialidades===filtEsp)&&
+      (!filtEst||(filtEst==='activo'?p.estado==='activo':p.estado!=='activo'));
+  });
+  const segsAll=[...new Set(allPrest.map(p=>p.segmento||p.zona||'Sin segmento').filter(Boolean))].sort();
+  const espsAll=[...new Set(allPrest.map(p=>p.especialidades||'').filter(Boolean))].sort();
+  const totalActivos=lista.filter(p=>p.estado==='activo').length;
+  const totalInactivos=lista.filter(p=>p.estado!=='activo').length;
+  const segMap={};
+  lista.forEach(p=>{const s=p.segmento||p.zona||'Sin segmento';if(!segMap[s])segMap[s]=[];segMap[s].push(p);});
+
+  let html=`<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--lg)">
+    <div class="sw" style="margin:0">
+      <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="prQ" placeholder="Buscar nombre, especialidad…" oninput="renderPrest()" value="${_prFiltros.q}" style="max-width:220px">
+    </div>
+    <select id="prSeg" onchange="renderPrest()" style="width:auto;padding:6px 10px;font-size:12.5px">
+      <option value="">Todos los segmentos</option>
+      ${segsAll.map(s=>`<option value="${s}"${s===filtSeg?' selected':''}>${s}</option>`).join('')}
+    </select>
+    <select id="prEsp" onchange="renderPrest()" style="width:auto;padding:6px 10px;font-size:12.5px">
+      <option value="">Todas las especialidades</option>
+      ${espsAll.map(e=>`<option value="${e}"${e===filtEsp?' selected':''}>${e}</option>`).join('')}
+    </select>
+    <select id="prEstFilt" onchange="renderPrest()" style="width:auto;padding:6px 10px;font-size:12.5px">
+      <option value=""${!filtEst?' selected':''}>Activos e inactivos</option>
+      <option value="activo"${filtEst==='activo'?' selected':''}>Solo activos</option>
+      <option value="inactivo"${filtEst==='inactivo'?' selected':''}>Solo inactivos</option>
+    </select>
+    <span style="font-size:12px;color:var(--gray);margin-left:auto">
+      <span style="color:var(--success);font-weight:600">${totalActivos}</span> activos ·
+      <span style="color:var(--gray)">${totalInactivos}</span> inactivos · ${lista.length} total
+    </span>
+  </div>`;
+
+  if(!lista.length){html+='<div class="empty">Sin prestadores que coincidan</div>';document.getElementById('prTbl').innerHTML=html;return;}
+
+  const segOrder=['San Miguel de Tucumán','Yerba Buena','Alderetes','Tafi Viejo','Las Talitas','Concepción','Aguilares'];
+  const segsOrdenados=Object.keys(segMap).sort((a,b)=>{
+    const ia=segOrder.indexOf(a); const ib=segOrder.indexOf(b);
+    if(ia>=0&&ib>=0) return ia-ib; if(ia>=0) return -1; if(ib>=0) return 1;
+    return a.localeCompare(b);
+  });
+
+  for(const seg of segsOrdenados){
+    const prests=segMap[seg];
+    const color=SEG_COLORS[seg]||'#6b7c79';
+    const actCnt=prests.filter(p=>p.estado==='activo').length;
+    html+=`<div style="margin-bottom:22px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:9px;padding-bottom:7px;border-bottom:2px solid ${color}40">
+        <div style="width:11px;height:11px;border-radius:50%;background:${color};flex-shrink:0"></div>
+        <span style="font-weight:700;color:${color};font-size:14.5px">${seg}</span>
+        <span style="font-size:11.5px;color:var(--gray);margin-left:2px">${actCnt}/${prests.length} activos</span>
+      </div>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px">
+        <thead><tr style="background:#f8fbfa">
+          <th style="padding:7px 10px;text-align:left;font-size:10px;color:var(--gray);letter-spacing:.8px;text-transform:uppercase;white-space:nowrap;border-bottom:1px solid var(--lg)">Razón Social</th>
+          <th style="padding:7px 10px;text-align:left;font-size:10px;color:var(--gray);letter-spacing:.8px;text-transform:uppercase;white-space:nowrap;border-bottom:1px solid var(--lg)">Especialidad</th>
+          <th style="padding:7px 10px;text-align:left;font-size:10px;color:var(--gray);letter-spacing:.8px;text-transform:uppercase;white-space:nowrap;border-bottom:1px solid var(--lg)">Tipo</th>
+          <th style="padding:7px 10px;text-align:left;font-size:10px;color:var(--gray);letter-spacing:.8px;text-transform:uppercase;white-space:nowrap;border-bottom:1px solid var(--lg)">Dirección</th>
+          <th style="padding:7px 10px;text-align:left;font-size:10px;color:var(--gray);letter-spacing:.8px;text-transform:uppercase;white-space:nowrap;border-bottom:1px solid var(--lg)">Teléfono</th>
+          <th style="padding:7px 10px;text-align:left;font-size:10px;color:var(--gray);letter-spacing:.8px;text-transform:uppercase;white-space:nowrap;border-bottom:1px solid var(--lg)">Estado</th>
+          <th style="padding:7px 10px;border-bottom:1px solid var(--lg)"></th>
+        </tr></thead>
+        <tbody>${prests.map(p=>`
+        <tr style="border-bottom:1px solid #f2f2f2;${p.estado!=='activo'?'opacity:0.5;background:#fafafa':''}">
+          <td style="padding:8px 10px;font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.razon_social||'—'}</td>
+          <td style="padding:8px 10px;color:var(--gray);font-size:12px;white-space:nowrap">${p.especialidades||'—'}</td>
+          <td style="padding:8px 10px;white-space:nowrap"><span style="font-size:10.5px;padding:2px 7px;border-radius:4px;background:var(--cream);color:var(--gray)">${tipoLabel(p.tipo)}</span></td>
+          <td style="padding:8px 10px;color:var(--gray);font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.direccion||p.zona||'—'}</td>
+          <td style="padding:8px 10px;font-size:12px;white-space:nowrap">${p.telefono||'—'}</td>
+          <td style="padding:8px 10px;white-space:nowrap">
+            <label class="toggle-wrap" title="${p.estado==='activo'?'Click para desactivar':'Click para activar'}">
+              <input type="checkbox" ${p.estado==='activo'?'checked':''} onchange="togglePrestEstado('${p.id}',this.checked)" style="position:absolute;opacity:0;width:0;height:0">
+              <div class="toggle-track ${p.estado==='activo'?'on':'off'}"><div class="toggle-thumb"></div></div>
+              <span class="toggle-lbl" style="color:${p.estado==='activo'?'var(--success)':'var(--gray)'}">${p.estado==='activo'?'Activo':'Inactivo'}</span>
+            </label>
+          </td>
+          <td style="padding:8px 10px;white-space:nowrap"><button class="btn-ico" onclick="editPrest('${p.id}')" title="Editar">✏</button></td>
+        </tr>`).join('')}
+        </tbody></table></div>
+    </div>`;
+  }
+  document.getElementById('prTbl').innerHTML=html;
+}
+async function togglePrestEstado(id, activo){
+  const nuevoEstado = activo ? 'activo' : 'inactivo';
+  const{error}=await sb.from('prestadores').update({estado:nuevoEstado}).eq('id',id);
+  if(error){toast('Error al actualizar: '+error.message,'err'); renderPrest(); return;}
+  const idx=allPrest.findIndex(p=>p.id===id);
+  if(idx>=0) allPrest[idx].estado=nuevoEstado;
+  toast(activo?'Prestador activado':'Prestador desactivado');
+  renderPrest();
+}
+function abrirPrestador(){
+  ['pr_id','pr_rs','pr_esp','pr_cuit','pr_tel','pr_em','pr_dir','pr_cop'].forEach(x=>document.getElementById(x).value='');
+  document.getElementById('pr_tp').value='profesional';
+  document.getElementById('pr_seg').value='San Miguel de Tucumán';
+  document.getElementById('pr_est').value='activo';
+  document.getElementById('mPrT').textContent='Nuevo Prestador';
+  openM('mPrest');
+}
+async function editPrest(id){
+  const p=allPrest.find(x=>x.id===id); if(!p)return;
+  document.getElementById('pr_id').value=p.id;
+  document.getElementById('pr_rs').value=p.razon_social||'';
+  document.getElementById('pr_tp').value=p.tipo||'profesional';
+  document.getElementById('pr_esp').value=p.especialidades||'';
+  document.getElementById('pr_seg').value=p.segmento||p.zona||'San Miguel de Tucumán';
+  document.getElementById('pr_dir').value=p.direccion||'';
+  document.getElementById('pr_cuit').value=p.cuit||'';
+  document.getElementById('pr_tel').value=p.telefono||'';
+  document.getElementById('pr_em').value=p.email||'';
+  document.getElementById('pr_cop').value=p.copago||0;
+  document.getElementById('pr_est').value=p.estado||'activo';
+  document.getElementById('mPrT').textContent='Editar Prestador';
+  openM('mPrest');
+}
+async function guardarPrest(){
+  const id=document.getElementById('pr_id').value;
+  const rs=document.getElementById('pr_rs').value.trim();
+  if(!rs){toast('Ingrese la razón social','err');return;}
+  const seg=document.getElementById('pr_seg').value;
+  const pay={razon_social:rs,tipo:document.getElementById('pr_tp').value,
+    especialidades:document.getElementById('pr_esp').value||null,
+    segmento:seg,zona:seg,
+    direccion:document.getElementById('pr_dir').value||null,
+    cuit:document.getElementById('pr_cuit').value||null,
+    telefono:document.getElementById('pr_tel').value||null,
+    email:document.getElementById('pr_em').value||null,
+    copago:Number(document.getElementById('pr_cop').value||0),
+    estado:document.getElementById('pr_est').value};
+  let err;
+  if(id){({error:err}=await sb.from('prestadores').update(pay).eq('id',id));}
+  else{pay.codigo='PR-'+Date.now().toString().slice(-6);({error:err}=await sb.from('prestadores').insert(pay));}
+  if(err){toast('Error: '+err.message,'err');return;}
+  toast(id?'Prestador actualizado':'Prestador creado');closeM('mPrest');loadPrest();
+}
+
+// ══ ACUERDOS ══
+async function loadAcu(){
+  const{data}=await sb.from('acuerdos').select('*,prestadores(razon_social)').order('vigencia_desde',{ascending:false});
+  document.getElementById('acTbl').innerHTML=`
+    <table><thead><tr><th>Prestador</th><th>Tipo</th><th>Cob%</th><th>Monto Est.</th><th>Desde</th><th>Hasta</th><th>Estado</th><th></th></tr></thead>
+    <tbody>${(data||[]).map(a=>`<tr>
+      <td style="font-weight:500">${a.prestadores?.razon_social||'—'}</td><td>${a.tipo||'—'}</td>
+      <td>${a.cobertura_pct||85}%</td><td>${fmt(a.monto_mensual_est)}</td>
+      <td>${fmtD(a.vigencia_desde)}</td><td>${fmtD(a.vigencia_hasta)}</td>
+      <td>${badge(a.estado)}</td>
+      <td style="white-space:nowrap">
+        <button class="btn-ico" onclick="editAcu('${a.id}')">✏</button>
+        <button class="btn-ico del" onclick="eliminarAcu('${a.id}','${a.prestadores?.razon_social||''}')">🗑</button>
+      </td></tr>`).join('')}</tbody></table>`;
+}
+async function abrirAcuerdo(){
+  if(!allPrest.length){const{data}=await sb.from('prestadores').select('id,razon_social').eq('estado','activo').order('razon_social');allPrest=data||[];}
+  document.getElementById('ac_pr').innerHTML='<option value="">Seleccionar prestador…</option>'+
+    allPrest.filter(p=>p.estado==='activo').map(p=>`<option value="${p.id}">${p.razon_social}</option>`).join('');
+  ['ac_id','ac_vc','ac_mm','ac_notas'].forEach(x=>document.getElementById(x).value='');
+  document.getElementById('ac_cov').value='85';
+  document.getElementById('ac_tp').value='capita';
+  document.getElementById('ac_est').value='vigente';
+  document.getElementById('ac_vd').value=new Date().toISOString().split('T')[0];
+  document.getElementById('ac_vh').value='';
+  document.getElementById('mAcT').textContent='Nuevo Acuerdo';
+  openM('mAcu');
+}
+async function editAcu(id){
+  await abrirAcuerdo();
+  const{data:a}=await sb.from('acuerdos').select('*').eq('id',id).single();
+  if(!a)return;
+  document.getElementById('ac_id').value=a.id;
+  document.getElementById('ac_pr').value=a.prestador_id||'';
+  document.getElementById('ac_tp').value=a.tipo||'capita';
+  document.getElementById('ac_cov').value=a.cobertura_pct||85;
+  document.getElementById('ac_vc').value=a.valor_capita||'';
+  document.getElementById('ac_mm').value=a.monto_mensual_est||'';
+  document.getElementById('ac_est').value=a.estado||'vigente';
+  document.getElementById('ac_vd').value=a.vigencia_desde||'';
+  document.getElementById('ac_vh').value=a.vigencia_hasta||'';
+  document.getElementById('ac_notas').value=a.notas||'';
+  document.getElementById('mAcT').textContent='Editar Acuerdo';
+}
+async function guardarAcu(){
+  const id=document.getElementById('ac_id').value;
+  const pr=document.getElementById('ac_pr').value;
+  const vd=document.getElementById('ac_vd').value;
+  if(!pr||!vd){toast('Seleccione prestador y fecha de vigencia','err');return;}
+  const pay={prestador_id:pr,tipo:document.getElementById('ac_tp').value,
+    cobertura_pct:parseInt(document.getElementById('ac_cov').value)||85,
+    valor_capita:parseFloat(document.getElementById('ac_vc').value)||0,
+    monto_mensual_est:parseFloat(document.getElementById('ac_mm').value)||0,
+    estado:document.getElementById('ac_est').value,vigencia_desde:vd,
+    vigencia_hasta:document.getElementById('ac_vh').value||null,
+    notas:document.getElementById('ac_notas').value||null};
+  let err;
+  if(id){({error:err}=await sb.from('acuerdos').update(pay).eq('id',id));}
+  else{({error:err}=await sb.from('acuerdos').insert(pay));}
+  if(err){toast('Error: '+err.message,'err');return;}
+  toast(id?'Acuerdo actualizado':'Acuerdo creado');closeM('mAcu');loadAcu();
+}
+function eliminarAcu(id,nom){
+  confirmar(`¿Eliminar el acuerdo con ${nom}?`,async()=>{
+    const{error}=await sb.from('acuerdos').delete().eq('id',id);
+    if(error){toast('Error: '+error.message,'err');return;}
+    toast('Acuerdo eliminado');loadAcu();
+  });
+}
+
+// ══ COBROS ══
+async function loadCob(){
+  const{data}=await sb.from('cobros').select('*,afiliados(nombre,apellido)').order('fecha_cobro',{ascending:false}).limit(200);
+  _allCobros = data||[];
+  const periodos = [...new Set(_allCobros.map(c=>c.periodo).filter(Boolean))].sort((a,b)=>b.localeCompare(a));
+  const selPer = document.getElementById('coPerFilt');
+  if(selPer){
+    const actual = selPer.value;
+    selPer.innerHTML='<option value="">Todos los períodos</option>'+periodos.map(p=>`<option value="${p}"${p===actual?' selected':''}>${p}</option>`).join('');
+  }
+  renderCob();
+}
+function renderCob(){
+  const q = (document.getElementById('coQ')?.value||'').toLowerCase();
+  const est = document.getElementById('coEstFilt')?.value||'';
+  const per = document.getElementById('coPerFilt')?.value||'';
+  const lista = _allCobros.filter(c=>{
+    const nom = (c.afiliados?.apellido||'')+' '+(c.afiliados?.nombre||'');
+    return(!q||nom.toLowerCase().includes(q))&&(!est||c.estado===est)&&(!per||c.periodo===per);
+  });
+  const totAcr = lista.filter(c=>c.estado==='acreditado').reduce((s,c)=>s+Number(c.importe||0),0);
+  const totCam = lista.filter(c=>c.estado==='en_camara').reduce((s,c)=>s+Number(c.importe||0),0);
+
+  let html = `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">
+    <div style="background:#e8f5e9;border-radius:9px;padding:12px;text-align:center;border:1px solid #c8e6c9">
+      <div style="font-size:10px;color:#2e7d32;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Acreditado</div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:#2e7d32;font-weight:600">${fmt(totAcr)}</div>
+    </div>
+    <div style="background:#fff8e1;border-radius:9px;padding:12px;text-align:center;border:1px solid #ffe082">
+      <div style="font-size:10px;color:#f57c00;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">En Cámara</div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:#f57c00;font-weight:600">${fmt(totCam)}</div>
+    </div>
+    <div style="background:var(--cream);border-radius:9px;padding:12px;text-align:center;border:1px solid var(--lg)">
+      <div style="font-size:10px;color:var(--gray);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Total Registros</div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--teal);font-weight:600">${lista.length}</div>
+    </div>
+  </div>`;
+
+  html += !lista.length
+    ? '<div class="empty">Sin cobros que coincidan con los filtros</div>'
+    : `<table><thead><tr><th>Fecha</th><th>Afiliado</th><th>Período</th><th>Importe</th><th>Medio</th><th>Estado</th></tr></thead>
+       <tbody>${lista.map(c=>`<tr>
+         <td>${fmtD(c.fecha_cobro)}</td>
+         <td style="font-weight:500">${c.afiliados?c.afiliados.apellido+', '+c.afiliados.nombre:'—'}</td>
+         <td>${c.periodo||'—'}</td>
+         <td style="font-weight:600;color:var(--success)">${fmt(c.importe)}</td>
+         <td>${c.medio_pago||'—'}</td><td>${badge(c.estado)}</td>
+       </tr>`).join('')}</tbody></table>`;
+
+  document.getElementById('coTbl').innerHTML = html;
+}
+
+async function abrirCobro(){
+  const{data}=await sb.from('afiliados').select('id,nombre,apellido,planes(cuota_titular)').in('estado',['activo','moroso']).order('apellido');
+  document.getElementById('co_af').innerHTML='<option value="">Seleccionar afiliado…</option>'+
+    (data||[]).map(a=>`<option value="${a.id}" data-cuota="${a.planes?.cuota_titular||0}">${a.apellido}, ${a.nombre}</option>`).join('');
+  document.getElementById('co_af').onchange = function(){
+    const opt = this.options[this.selectedIndex];
+    const cuota = opt?.getAttribute('data-cuota')||'';
+    if(cuota && !document.getElementById('co_imp').value) document.getElementById('co_imp').value=cuota;
+  };
+  document.getElementById('co_fch').value=new Date().toISOString().split('T')[0];
+  setPeriodoSelects('co_per_mes','co_per_anio',periodoActual);
+  document.getElementById('co_imp').value='';
+  document.getElementById('co_nota').value='';
+  document.getElementById('co_est').value='acreditado';
+  openM('mCob');
+}
+
+let _cobGuardando = false;
+async function guardarCob(){
+  if(_cobGuardando){toast('Procesando, espere…','wrn');return;}
+  const af=document.getElementById('co_af').value;
+  const imp=parseFloat(document.getElementById('co_imp').value);
+  const fch=document.getElementById('co_fch').value;
+  const per=getPeriodoFromSelects('co_per_mes','co_per_anio');
+  if(!af||!imp||!fch||!per){toast('Complete todos los campos requeridos','err');return;}
+  const hace10s = new Date(Date.now()-10000).toISOString();
+  const{data:exist}=await sb.from('cobros')
+    .select('id').eq('afiliado_id',af).eq('importe',imp)
+    .eq('fecha_cobro',fch).eq('periodo',per)
+    .gte('created_at',hace10s).limit(1);
+  if(exist&&exist.length>0){toast('⚠️ Cobro ya registrado recientemente','wrn');return;}
+  _cobGuardando = true;
+  const btn = document.querySelector('#mCob .btn-p');
+  if(btn){btn.disabled=true;btn.textContent='Guardando…';}
+  const{error}=await sb.from('cobros').insert({
+    afiliado_id:af,importe:imp,fecha_cobro:fch,periodo:per,
+    medio_pago:document.getElementById('co_mp').value,
+    estado:document.getElementById('co_est').value,
+    notas:document.getElementById('co_nota').value||null});
+  _cobGuardando = false;
+  if(btn){btn.disabled=false;btn.textContent='Registrar';}
+  if(error){toast('Error: '+error.message,'err');return;}
+  const opt = document.getElementById('co_af').options[document.getElementById('co_af').selectedIndex];
+  const afNombre = opt?.text || '—';
+  const cobData = {afiliado:afNombre,importe:imp,fecha:fch,periodo:per,
+    medio:document.getElementById('co_mp').value,estado:document.getElementById('co_est').value,
+    nota:document.getElementById('co_nota').value||''};
+  closeM('mCob');loadCob();
+  if(document.getElementById('pg-dashboard').classList.contains('active')) loadDashboard();
+  toast('✅ Cobro registrado correctamente');
+  mostrarRecibo(cobData);
+}
+
+function mostrarRecibo(d){
+  const num = 'R-'+Date.now().toString().slice(-8);
+  const ahora = new Date().toLocaleString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  document.getElementById('reciboContenido').innerHTML = `
+    <div class="recibo-wrap">
+      <div class="recibo-header">
+        <div class="recibo-logo">Cuidalma</div>
+        <div class="recibo-sub">Sistema de Gestión en Salud</div>
+        <div class="recibo-num">Recibo N° ${num} · Emitido: ${ahora}</div>
+      </div>
+      <div class="recibo-row"><span class="recibo-lbl">Afiliado</span><span class="recibo-val">${d.afiliado}</span></div>
+      <div class="recibo-row"><span class="recibo-lbl">Período</span><span class="recibo-val">${d.periodo}</span></div>
+      <div class="recibo-row"><span class="recibo-lbl">Fecha de Pago</span><span class="recibo-val">${fmtD(d.fecha)}</span></div>
+      <div class="recibo-row"><span class="recibo-lbl">Medio de Pago</span><span class="recibo-val">${d.medio}</span></div>
+      <div class="recibo-row"><span class="recibo-lbl">Estado</span><span class="recibo-val">${badge(d.estado)}</span></div>
+      ${d.nota?`<div class="recibo-row"><span class="recibo-lbl">Nota</span><span class="recibo-val" style="font-weight:400">${d.nota}</span></div>`:''}
+      <div class="recibo-total">
+        <span class="recibo-total-lbl">Total Abonado</span>
+        <span class="recibo-total-val">${fmt(d.importe)}</span>
+      </div>
+      <div class="recibo-firma">
+        <span>San Miguel de Tucumán, ${fmtD(d.fecha)}</span>
+        <span>Cuidalma © 2026</span>
+      </div>
+    </div>`;
+  openM('mRecibo');
+}
+
+// ══ CUENTAS CORRIENTES ══
+async function loadCC(){
+  const {data:todosMovs} = await sb.from('cuenta_corriente')
+    .select('*,afiliados(id,nombre,apellido,planes(nombre))')
+    .order('fecha',{ascending:false})
+    .order('created_at',{ascending:false});
+
+  const movs = todosMovs||[];
+  const afMap = {};
+  movs.forEach(m=>{
+    const aid = m.afiliado_id;
+    if(!afMap[aid]){
+      afMap[aid]={id:aid,nombre:m.afiliados?.nombre||'',apellido:m.afiliados?.apellido||'',
+        plan:m.afiliados?.planes?.nombre||'—',debitos:0,creditos:0,movs:[]};
+    }
+    if(m.tipo==='debito')  afMap[aid].debitos  += Number(m.importe||0);
+    if(m.tipo==='credito') afMap[aid].creditos += Number(m.importe||0);
+    afMap[aid].movs.push(m);
+  });
+
+  const afList = Object.values(afMap).map(a=>({...a,saldo:a.debitos-a.creditos}));
+  afList.sort((a,b)=>b.saldo-a.saldo || (a.apellido+a.nombre).localeCompare(b.apellido+b.nombre));
+
+  const conDeuda  = afList.filter(a=>a.saldo>0).length;
+  const totalDeuda= afList.filter(a=>a.saldo>0).reduce((s,a)=>s+a.saldo,0);
+  const alDia     = afList.filter(a=>a.saldo<=0).length;
+
+  window._ccAfList = afList;
+
+  const resumenHtml = `<div class="cc-resumen">
+    <div class="cc-box deudor">
+      <div class="cc-box-lbl">Con Saldo Deudor</div>
+      <div class="cc-box-val">${conDeuda}</div>
+      <div class="cc-box-sub">${fmt(totalDeuda)} total</div>
+    </div>
+    <div class="cc-box ok">
+      <div class="cc-box-lbl">Al Día</div>
+      <div class="cc-box-val">${alDia}</div>
+      <div class="cc-box-sub">sin deuda pendiente</div>
+    </div>
+    <div class="cc-box neutral">
+      <div class="cc-box-lbl">Total Afiliados</div>
+      <div class="cc-box-val">${afList.length}</div>
+      <div class="cc-box-sub">${movs.length} movimientos</div>
+    </div>
+  </div>`;
+
+  const filtroHtml = `<div class="cc-filtros" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+    <div class="sw" style="margin:0">
+      <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="ccQ" placeholder="Buscar afiliado…" oninput="filtrarCC()" style="max-width:240px">
+    </div>
+    <select id="ccEstSaldo" onchange="filtrarCC()" style="width:auto;padding:6px 10px;font-size:12.5px">
+      <option value="">Todos los saldos</option>
+      <option value="deudor">Con saldo deudor</option>
+      <option value="aldía">Sin deuda</option>
+    </select>
+  </div>`;
+
+  document.getElementById('ccTbl').innerHTML = resumenHtml + filtroHtml + '<div id="ccAfCards"></div>';
+  filtrarCC();
+}
+
+function filtrarCC(){
+  const afList = window._ccAfList||[];
+  const q = (document.getElementById('ccQ')?.value||'').toLowerCase();
+  const estado = document.getElementById('ccEstSaldo')?.value||'';
+  const lista = afList.filter(a=>{
+    const nom = (a.apellido+' '+a.nombre).toLowerCase();
+    return(!q||nom.includes(q))&&(!estado||(estado==='deudor'&&a.saldo>0)||(estado==='aldía'&&a.saldo<=0));
+  });
+  const el = document.getElementById('ccAfCards');
+  if(!el) return;
+  if(!lista.length){el.innerHTML='<div class="empty">Sin afiliados que coincidan</div>';return;}
+  const COLORES=['#2A7A6B','#2980b9','#8e44ad','#d4991f','#c0392b','#27ae60','#e67e22','#16a085','#7f8c8d'];
+  el.innerHTML = lista.map((a,idx)=>{
+    const color = COLORES[idx % COLORES.length];
+    const ini = ((a.apellido||'?')[0]+(a.nombre||'?')[0]).toUpperCase();
+    const saldoColor = a.saldo>0 ? 'var(--danger)' : 'var(--success)';
+    const saldoLabel = a.saldo>0 ? fmt(a.saldo) : '✅ Al día';
+    const cardId = 'cc-'+a.id;
+    const filas = a.movs.map(m=>`<tr>
+      <td>${fmtD(m.fecha)}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.concepto||'—'}</td>
+      <td>${m.periodo||'—'}</td>
+      <td>${badge(m.tipo, m.tipo==='debito'?'Cargo':'Pago')}</td>
+      <td style="color:${m.tipo==='debito'?'var(--danger)':'var(--success)'};font-weight:600;text-align:right">
+        ${m.tipo==='debito'?'−':'+'}${fmt(m.importe)}
+      </td>
+    </tr>`).join('');
+    return `<div class="cc-af-card">
+      <div class="cc-af-head" onclick="toggleCC('${cardId}')">
+        <div class="cc-af-avatar" style="background:${color}">${ini}</div>
+        <div class="cc-af-info">
+          <div class="cc-af-nombre">${a.apellido}, ${a.nombre}</div>
+          <div class="cc-af-plan">${a.plan} · ${a.movs.length} movimientos</div>
+        </div>
+        <div class="cc-af-saldo" style="color:${saldoColor}">${saldoLabel}</div>
+        <div class="cc-af-caret" id="caret-${cardId}">▼</div>
+      </div>
+      <div class="cc-af-body" id="${cardId}">
+        <table>
+          <thead><tr><th>Fecha</th><th>Concepto</th><th>Período</th><th>Tipo</th><th style="text-align:right">Importe</th></tr></thead>
+          <tbody>${filas}</tbody>
+          <tfoot><tr>
+            <td colspan="4" style="padding:8px 12px;font-weight:700;font-size:12px;color:var(--gray)">SALDO ACTUAL</td>
+            <td style="padding:8px 12px;font-weight:800;font-size:14px;color:${saldoColor};text-align:right">${saldoLabel}</td>
+          </tr></tfoot>
+        </table>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleCC(id){
+  const body = document.getElementById(id);
+  const caret = document.getElementById('caret-'+id);
+  if(!body) return;
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  if(caret) caret.style.transform = isOpen ? '' : 'rotate(180deg)';
+}
+
+// ══ GESTIÓN FINANCIERA ══
+function finTab(id,el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  ['transacciones','estado_resultados','flujo_caja','por_categoria'].forEach(t=>{
+    document.getElementById('fin-'+t).style.display=t===id?'block':'none';
+  });
+  if(id==='transacciones') loadFinTx();
+  else if(id==='estado_resultados') loadFinER();
+  else if(id==='flujo_caja') loadFinFC();
+  else if(id==='por_categoria') loadFinCat();
+}
+
+async function loadFin(){
+  loadFinTx();
+  const{data}=await sb.from('fin_categorias').select('*').eq('activo',true).order('tipo').order('nombre');
+  allFinCat=data||[];
+}
+
+async function loadFinTx(){
+  const tipo=document.getElementById('finFiltTipo')?.value||'';
+  const est=document.getElementById('finFiltEst')?.value||'';
+  const mes=document.getElementById('finFiltMes')?.value||'';
+  let q=sb.from('fin_transacciones').select('*,fin_categorias(nombre,tipo)').order('fecha',{ascending:false}).limit(300);
+  if(tipo) q=q.eq('tipo',tipo);
+  if(est)  q=q.eq('estado',est);
+  if(mes){
+    const [y,m]=mes.split('-');
+    const nm=meses[parseInt(m)];
+    if(nm) q=q.eq('periodo',`${nm} ${y}`);
+  }
+  const{data}=await q;
+  const txs=data||[];
+  const ing=txs.filter(t=>t.tipo==='ingreso'&&t.estado!=='anulado').reduce((s,t)=>s+Number(t.importe||0),0);
+  const egr=txs.filter(t=>t.tipo==='egreso' &&t.estado!=='anulado').reduce((s,t)=>s+Number(t.importe||0),0);
+  document.getElementById('finResumen').innerHTML=`
+    <div class="fin-box ing"><div class="fin-box-lbl">▲ Ingresos</div><div class="fin-box-val">${fmt(ing)}</div></div>
+    <div class="fin-box egr"><div class="fin-box-lbl">▼ Egresos</div><div class="fin-box-val">${fmt(egr)}</div></div>
+    <div class="fin-box net"><div class="fin-box-lbl">= Resultado</div><div class="fin-box-val" style="color:${ing-egr>=0?'var(--success)':'var(--danger)'}">${fmt(ing-egr)}</div></div>`;
+  document.getElementById('finTxTbl').innerHTML = !txs.length
+    ? '<div class="empty">Sin transacciones en el período seleccionado</div>'
+    : `<table><thead><tr><th>Fecha</th><th>Tipo</th><th>Categoría</th><th>Concepto</th><th>Proveedor/Afiliado</th><th>Período</th><th>Importe</th><th>Estado</th><th></th></tr></thead>
+       <tbody>${txs.map(t=>`<tr>
+         <td>${fmtD(t.fecha)}</td><td>${badge(t.tipo)}</td>
+         <td style="font-size:12px">${t.fin_categorias?.nombre||'—'}</td>
+         <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.concepto||'—'}</td>
+         <td style="font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.proveedor||'—'}</td>
+         <td>${t.periodo||'—'}</td>
+         <td style="font-weight:600;color:${t.tipo==='ingreso'?'var(--success)':'var(--danger)'}">${fmt(t.importe)}</td>
+         <td>${badge(t.estado)}</td>
+         <td style="white-space:nowrap">
+           <button class="btn-ico" onclick="editTx('${t.id}')">✏</button>
+           <button class="btn-ico del" onclick="eliminarTx('${t.id}')">🗑</button>
+         </td></tr>`).join('')}</tbody></table>`;
+}
+
+async function abrirTx(tipo){
+  if(!allFinCat.length){const{data}=await sb.from('fin_categorias').select('*').eq('activo',true).order('nombre');allFinCat=data||[];}
+  const cats=allFinCat.filter(c=>c.tipo===tipo);
+  document.getElementById('tx_cat').innerHTML='<option value="">Seleccionar categoría…</option>'+
+    cats.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
+  ['tx_id','tx_imp','tx_con','tx_comp','tx_prov','tx_nota'].forEach(x=>document.getElementById(x).value='');
+  document.getElementById('tx_tipo').value=tipo;
+  document.getElementById('tx_fch').value=new Date().toISOString().split('T')[0];
+  setPeriodoSelects('tx_per_mes','tx_per_anio',periodoActual);
+  document.getElementById('tx_est').value='pagado';
+  document.getElementById('tx_mp').value='Transferencia';
+  document.getElementById('mTxT').textContent=tipo==='ingreso'?'Nuevo Ingreso':'Nuevo Egreso';
+  document.getElementById('mTxS').textContent=tipo==='ingreso'?'Registre el ingreso financiero':'Registre el gasto o egreso';
+  openM('mTx');
+}
+async function editTx(id){
+  const{data:t}=await sb.from('fin_transacciones').select('*').eq('id',id).single();
+  if(!t)return;
+  await abrirTx(t.tipo);
+  document.getElementById('tx_id').value=t.id;
+  document.getElementById('tx_cat').value=t.categoria_id||'';
+  document.getElementById('tx_imp').value=t.importe||'';
+  document.getElementById('tx_fch').value=t.fecha||'';
+  setPeriodoSelects('tx_per_mes','tx_per_anio',t.periodo||periodoActual);
+  document.getElementById('tx_est').value=t.estado||'pagado';
+  document.getElementById('tx_mp').value=t.medio_pago||'Transferencia';
+  document.getElementById('tx_con').value=t.concepto||'';
+  document.getElementById('tx_comp').value=t.comprobante||'';
+  document.getElementById('tx_prov').value=t.proveedor||'';
+  document.getElementById('tx_nota').value=t.notas||'';
+  document.getElementById('mTxT').textContent='Editar Transacción';
+}
+async function guardarTx(){
+  const id=document.getElementById('tx_id').value;
+  const tipo=document.getElementById('tx_tipo').value;
+  const con=document.getElementById('tx_con').value.trim();
+  const imp=parseFloat(document.getElementById('tx_imp').value);
+  const fch=document.getElementById('tx_fch').value;
+  const per=getPeriodoFromSelects('tx_per_mes','tx_per_anio');
+  if(!con||!imp||!fch||!per){toast('Complete concepto, importe, fecha y período','err');return;}
+  const pay={tipo,concepto:con,importe:imp,fecha:fch,periodo:per,
+    categoria_id:document.getElementById('tx_cat').value||null,
+    estado:document.getElementById('tx_est').value,
+    medio_pago:document.getElementById('tx_mp').value,
+    comprobante:document.getElementById('tx_comp').value||null,
+    proveedor:document.getElementById('tx_prov').value||null,
+    notas:document.getElementById('tx_nota').value||null,
+    updated_at:new Date().toISOString()};
+  let err;
+  if(id){({error:err}=await sb.from('fin_transacciones').update(pay).eq('id',id));}
+  else{({error:err}=await sb.from('fin_transacciones').insert(pay));}
+  if(err){toast('Error: '+err.message,'err');return;}
+  toast(id?'Transacción actualizada':'Transacción registrada');closeM('mTx');loadFinTx();
+}
+function eliminarTx(id){
+  confirmar('¿Eliminar esta transacción?',async()=>{
+    const{error}=await sb.from('fin_transacciones').delete().eq('id',id);
+    if(error){toast('Error: '+error.message,'err');return;}
+    toast('Eliminado');loadFinTx();
+  });
+}
+async function loadFinER(){
+  const{data}=await sb.from('vw_estado_resultados').select('*');
+  document.getElementById('finERTbl').innerHTML = !data?.length
+    ? '<div class="empty">Sin datos</div>'
+    : `<table><thead><tr><th>Período</th><th>Ingresos</th><th>Egresos</th><th>Resultado Neto</th><th>Pendiente</th></tr></thead>
+       <tbody>${data.map(r=>{const n=Number(r.resultado_neto||0);return`<tr>
+         <td style="font-weight:600">${r.periodo}</td>
+         <td style="color:var(--success);font-weight:500">${fmt(r.total_ingresos)}</td>
+         <td style="color:var(--danger);font-weight:500">${fmt(r.total_egresos)}</td>
+         <td style="font-weight:700;font-size:15px;color:${n>=0?'var(--success)':'var(--danger)'}">${fmt(n)}</td>
+         <td style="color:var(--warning)">${fmt(r.importe_pendiente)}</td>
+       </tr>`;}).join('')}</tbody></table>`;
+}
+async function loadFinFC(){
+  const{data}=await sb.from('vw_flujo_caja').select('*').limit(30);
+  document.getElementById('finFCTbl').innerHTML = !data?.length
+    ? '<div class="empty">Sin movimientos de efectivo registrados</div>'
+    : `<table><thead><tr><th>Fecha</th><th>Período</th><th>Ingresos del Día</th><th>Egresos del Día</th><th>Flujo Neto</th></tr></thead>
+       <tbody>${data.map(r=>{const n=Number(r.flujo_neto_dia||0);return`<tr>
+         <td>${fmtD(r.fecha)}</td><td>${r.periodo||'—'}</td>
+         <td style="color:var(--success)">${fmt(r.ingresos_dia)}</td>
+         <td style="color:var(--danger)">${fmt(r.egresos_dia)}</td>
+         <td style="font-weight:700;color:${n>=0?'var(--success)':'var(--danger)'}">${fmt(n)}</td>
+       </tr>`;}).join('')}</tbody></table>`;
+}
+async function loadFinCat(){
+  const{data}=await sb.from('fin_transacciones').select('*,fin_categorias(nombre,tipo)').eq('estado','pagado');
+  const catMap={ing:{},egr:{}};
+  (data||[]).forEach(t=>{
+    const n=t.fin_categorias?.nombre||'Sin categoría';
+    const g=t.tipo==='ingreso'?catMap.ing:catMap.egr;
+    if(!g[n]) g[n]=0;
+    g[n]+=Number(t.importe||0);
+  });
+  const tblCat=(obj,color)=>{
+    const rows=Object.entries(obj).sort((a,b)=>b[1]-a[1]);
+    if(!rows.length) return '<div class="empty">Sin datos</div>';
+    const tot=rows.reduce((s,[,v])=>s+v,0);
+    return `<table><thead><tr><th>Categoría</th><th>Total</th><th>%</th></tr></thead>
+      <tbody>${rows.map(([n,v])=>`<tr>
+        <td>${n}</td><td style="font-weight:600;color:${color}">${fmt(v)}</td>
+        <td style="color:var(--gray);font-size:12px">${tot?(v/tot*100).toFixed(1):0}%</td>
+      </tr>`).join('')}</tbody></table>`;
+  };
+  document.getElementById('finCatIngTbl').innerHTML=tblCat(catMap.ing,'var(--success)');
+  document.getElementById('finCatEgrTbl').innerHTML=tblCat(catMap.egr,'var(--danger)');
+}
+
+// ══ DEVENGAMIENTO ══
+async function loadDev(){
+  const{data}=await sb.from('devengamientos').select('*,planes(nombre)').order('created_at',{ascending:false});
+  document.getElementById('devTbl').innerHTML=`
+    <table><thead><tr><th>Período</th><th>Plan</th><th>Afiliados</th><th>Cuota</th><th>Total</th><th>Estado</th><th>Procesado</th></tr></thead>
+    <tbody>${(data||[]).map(d=>`<tr>
+      <td style="font-weight:500">${d.periodo||'—'}</td><td>${d.planes?.nombre||'—'}</td>
+      <td>${d.afiliados_count||0}</td><td>${fmt(d.cuota_aplicada)}</td>
+      <td style="font-weight:600;color:var(--teal)">${fmt(d.total_devengado)}</td>
+      <td>${badge(d.estado)}</td><td>${fmtD(d.procesado_at)}</td>
+    </tr>`).join('')}</tbody></table>`;
+}
+async function procesarDev(){
+  const mes=parseInt(document.getElementById('devM').value);
+  const anio=parseInt(document.getElementById('devA').value);
+  const periodo=`${meses[mes]} ${anio}`;
+  if(!confirm(`¿Procesar devengamiento para ${periodo}?\nSe generarán cargos de cuota a todos los afiliados activos.`))return;
+  const{data:afs}=await sb.from('afiliados').select('id,plan_id,planes(nombre,cuota_titular)').eq('estado','activo');
+  if(!afs?.length){toast('No hay afiliados activos','wrn');return;}
+  const g={};
+  afs.forEach(a=>{
+    if(!g[a.plan_id]) g[a.plan_id]={nombre:a.planes?.nombre,cuota:Number(a.planes?.cuota_titular||0),ids:[]};
+    g[a.plan_id].ids.push(a.id);
+  });
+  for(const[plan_id,pg] of Object.entries(g)){
+    const{error}=await sb.from('devengamientos').insert({
+      periodo,plan_id,afiliados_count:pg.ids.length,
+      cuota_aplicada:pg.cuota,total_devengado:pg.cuota*pg.ids.length,
+      estado:'procesado',procesado_at:new Date().toISOString()});
+    if(!error){
+      for(const af_id of pg.ids){
+        const{data:ccData}=await sb.from('cuenta_corriente').select('importe,tipo').eq('afiliado_id',af_id);
+        const saldoActual=(ccData||[]).reduce((s,r)=>r.tipo==='debito'?s+Number(r.importe):s-Number(r.importe),0);
+        await sb.from('cuenta_corriente').insert({
+          afiliado_id:af_id,fecha:new Date().toISOString().split('T')[0],
+          tipo:'debito',concepto:`Cuota ${pg.nombre||''} ${periodo}`,
+          periodo,importe:pg.cuota,saldo:saldoActual+pg.cuota});
+      }
+    }
+  }
+  toast(`✅ Devengamiento ${periodo} procesado — ${afs.length} afiliados`);
+  loadDev();
+}
+
+// ══ CRM ══
+async function loadCRM(){
+  const{data}=await sb.from('crm_gestiones').select('*,afiliados(nombre,apellido)').order('created_at',{ascending:false}).limit(50);
+  document.getElementById('crmTbl').innerHTML = !(data?.length)
+    ? '<div class="empty">Sin gestiones registradas</div>'
+    : `<table><thead><tr><th>Nº</th><th>Afiliado</th><th>Tipo</th><th>Prioridad</th><th>Asunto</th><th>Estado</th><th>Fecha</th></tr></thead>
+       <tbody>${data.map(c=>`<tr>
+         <td style="color:var(--gray);font-size:11px">${c.numero||'—'}</td>
+         <td style="font-weight:500">${c.afiliados?c.afiliados.apellido+', '+c.afiliados.nombre:'—'}</td>
+         <td>${badge(c.tipo,c.tipo)}</td><td>${badge(c.prioridad)}</td>
+         <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.asunto||'—'}</td>
+         <td>${badge(c.estado)}</td><td>${fmtD(c.created_at)}</td>
+       </tr>`).join('')}</tbody></table>`;
+}
+async function abrirCRM(){
+  const{data}=await sb.from('afiliados').select('id,nombre,apellido').eq('estado','activo').order('apellido');
+  document.getElementById('crm_af').innerHTML='<option value="">Seleccionar…</option>'+
+    (data||[]).map(a=>`<option value="${a.id}">${a.apellido}, ${a.nombre}</option>`).join('');
+  ['crm_as','crm_det'].forEach(x=>document.getElementById(x).value='');
+  openM('mCRM');
+}
+async function guardarCRM(){
+  const af=document.getElementById('crm_af').value;
+  const as=document.getElementById('crm_as').value.trim();
+  if(!af||!as){toast('Seleccione afiliado e ingrese asunto','err');return;}
+  const{error}=await sb.from('crm_gestiones').insert({
+    numero:'G-'+Date.now().toString().slice(-6),
+    afiliado_id:af,tipo:document.getElementById('crm_tp').value,
+    prioridad:document.getElementById('crm_pr').value,
+    asunto:as,detalle:document.getElementById('crm_det').value||null,estado:'abierto'});
+  if(error){toast('Error: '+error.message,'err');return;}
+  toast('Gestión CRM creada');closeM('mCRM');loadCRM();
+}
+
+// ══════════════════════════════════════
+// ══ VENDEDORES ══
+// ══════════════════════════════════════
+async function loadVendedores(){
+  const{data:vends}=await sb.from('vendedores').select('*').order('apellido');
+  const{data:afCounts}=await sb.from('afiliados').select('vendedor_id').not('vendedor_id','is',null);
+  const cntMap={};
+  (afCounts||[]).forEach(a=>{ cntMap[a.vendedor_id]=(cntMap[a.vendedor_id]||0)+1; });
+
+  document.getElementById('vendTbl').innerHTML = !(vends?.length)
+    ? '<div class="empty">No hay vendedores registrados. Agregue el primero.</div>'
+    : `<table><thead><tr><th>Apellido y Nombre</th><th>DNI</th><th>Teléfono</th><th>Email</th><th>Afiliados</th><th>Estado</th><th></th></tr></thead>
+       <tbody>${vends.map(v=>`<tr>
+         <td style="font-weight:600">${v.apellido||''}, ${v.nombre||''}</td>
+         <td>${v.dni||'—'}</td><td>${v.telefono||'—'}</td><td>${v.email||'—'}</td>
+         <td><span class="badge bb">${cntMap[v.id]||0} afiliados</span></td>
+         <td>${badge(v.estado)}</td>
+         <td style="white-space:nowrap">
+           <button class="btn-ico" onclick="editVendedor('${v.id}')">✏</button>
+           <button class="btn-ico del" onclick="eliminarVendedor('${v.id}','${(v.apellido||'')+', '+(v.nombre||'')}')">🗑</button>
+         </td></tr>`).join('')}</tbody></table>`;
+
+  // También cargar configuración de comisiones
+  loadComConfig();
+}
+
+function abrirVendedor(){
+  ['vd_id','vd_ap','vd_nm','vd_dni','vd_tel','vd_em'].forEach(x=>document.getElementById(x).value='');
+  document.getElementById('vd_est').value='activo';
+  document.getElementById('mVendT').textContent='Nuevo Vendedor';
+  openM('mVend');
+}
+async function editVendedor(id){
+  const{data:v}=await sb.from('vendedores').select('*').eq('id',id).single();
+  if(!v)return;
+  document.getElementById('vd_id').value=v.id;
+  document.getElementById('vd_ap').value=v.apellido||'';
+  document.getElementById('vd_nm').value=v.nombre||'';
+  document.getElementById('vd_dni').value=v.dni||'';
+  document.getElementById('vd_tel').value=v.telefono||'';
+  document.getElementById('vd_em').value=v.email||'';
+  document.getElementById('vd_est').value=v.estado||'activo';
+  document.getElementById('mVendT').textContent='Editar Vendedor';
+  openM('mVend');
+}
+async function guardarVendedor(){
+  const id=document.getElementById('vd_id').value;
+  const apellido=document.getElementById('vd_ap').value.trim().toUpperCase();
+  const nombre=document.getElementById('vd_nm').value.trim().toUpperCase();
+  if(!apellido||!nombre){toast('Complete apellido y nombre','err');return;}
+  const pay={apellido,nombre,dni:document.getElementById('vd_dni').value||null,
+    telefono:document.getElementById('vd_tel').value||null,
+    email:document.getElementById('vd_em').value||null,
+    estado:document.getElementById('vd_est').value,updated_at:new Date().toISOString()};
+  let err;
+  if(id){({error:err}=await sb.from('vendedores').update(pay).eq('id',id));}
+  else{({error:err}=await sb.from('vendedores').insert(pay));}
+  if(err){toast('Error: '+err.message,'err');return;}
+  allVendedores=[]; // reset cache
+  toast(id?'Vendedor actualizado':'Vendedor creado');closeM('mVend');loadVendedores();
+}
+function eliminarVendedor(id,nom){
+  confirmar(`¿Eliminar el vendedor ${nom}? Los afiliados asignados quedarán sin vendedor.`,async()=>{
+    const{error}=await sb.from('vendedores').delete().eq('id',id);
+    if(error){toast('Error: '+error.message,'err');return;}
+    allVendedores=[];
+    toast('Vendedor eliminado');loadVendedores();
+  });
+}
+
+// Configuración de comisiones
+async function loadComConfig(){
+  const{data}=await sb.from('comisiones_config').select('*,vendedores(nombre,apellido),planes(nombre,cuota_titular)').order('created_at',{ascending:false});
+  document.getElementById('comCfgTbl').innerHTML = !(data?.length)
+    ? '<div class="empty">No hay comisiones configuradas. Configure la primera.</div>'
+    : `<table><thead><tr><th>Vendedor</th><th>Plan</th><th>Cuota del Plan</th><th>Comisión %</th><th>Comisión por Afiliado</th><th>Estado</th><th></th></tr></thead>
+       <tbody>${data.map(c=>{
+         const cuota=Number(c.planes?.cuota_titular||0);
+         const comPorAf=cuota*(c.porcentaje/100);
+         return `<tr>
+           <td style="font-weight:600">${c.vendedores?c.vendedores.apellido+', '+c.vendedores.nombre:'—'}</td>
+           <td>${c.planes?.nombre||'—'}</td>
+           <td>${fmt(cuota)}</td>
+           <td style="font-weight:700;color:var(--teal)">${c.porcentaje}%</td>
+           <td style="font-weight:600;color:var(--gold)">${fmt(comPorAf)}/afiliado</td>
+           <td>${badge(c.activo?'activo':'inactivo')}</td>
+           <td style="white-space:nowrap">
+             <button class="btn-ico" onclick="editComConfig('${c.id}')">✏</button>
+             <button class="btn-ico del" onclick="eliminarComConfig('${c.id}')">🗑</button>
+           </td></tr>`;
+       }).join('')}</tbody></table>`;
+}
+
+async function abrirConfigComision(){
+  const{data:vends}=await sb.from('vendedores').select('id,nombre,apellido').eq('estado','activo').order('apellido');
+  const{data:planes}=await sb.from('planes').select('id,nombre,cuota_titular').order('nombre');
+  document.getElementById('cc_vend').innerHTML='<option value="">Seleccionar vendedor…</option>'+
+    (vends||[]).map(v=>`<option value="${v.id}">${v.apellido}, ${v.nombre}</option>`).join('');
+  document.getElementById('cc_plan').innerHTML='<option value="">Seleccionar plan…</option>'+
+    (planes||[]).map(p=>`<option value="${p.id}" data-cuota="${p.cuota_titular}">${p.nombre} (${fmt(p.cuota_titular)})</option>`).join('');
+  ['cc_id','cc_pct','cc_notas'].forEach(x=>document.getElementById(x).value='');
+  document.getElementById('cc_desde').value=new Date().toISOString().split('T')[0];
+  openM('mComCfg');
+}
+async function editComConfig(id){
+  await abrirConfigComision();
+  const{data:c}=await sb.from('comisiones_config').select('*').eq('id',id).single();
+  if(!c)return;
+  document.getElementById('cc_id').value=c.id;
+  document.getElementById('cc_vend').value=c.vendedor_id||'';
+  document.getElementById('cc_plan').value=c.plan_id||'';
+  document.getElementById('cc_pct').value=c.porcentaje||'';
+  document.getElementById('cc_desde').value=c.vigente_desde||'';
+  document.getElementById('cc_notas').value=c.notas||'';
+}
+async function guardarComConfig(){
+  const id=document.getElementById('cc_id').value;
+  const vendedor_id=document.getElementById('cc_vend').value;
+  const plan_id=document.getElementById('cc_plan').value;
+  const porcentaje=parseFloat(document.getElementById('cc_pct').value);
+  if(!vendedor_id||!plan_id||isNaN(porcentaje)){toast('Complete todos los campos requeridos','err');return;}
+  const pay={vendedor_id,plan_id,porcentaje,
+    vigente_desde:document.getElementById('cc_desde').value||null,
+    notas:document.getElementById('cc_notas').value||null,
+    activo:true,updated_at:new Date().toISOString()};
+  let err;
+  if(id){({error:err}=await sb.from('comisiones_config').update(pay).eq('id',id));}
+  else{({error:err}=await sb.from('comisiones_config').insert(pay));}
+  if(err){toast('Error: '+err.message,'err');return;}
+  toast(id?'Comisión actualizada':'Comisión configurada');closeM('mComCfg');loadComConfig();
+}
+function eliminarComConfig(id){
+  confirmar('¿Eliminar esta configuración de comisión?',async()=>{
+    const{error}=await sb.from('comisiones_config').delete().eq('id',id);
+    if(error){toast('Error: '+error.message,'err');return;}
+    toast('Configuración eliminada');loadComConfig();
+  });
+}
+
+// ══════════════════════════════════════
+// ══ LIQUIDACIÓN DE COMISIONES ══
+// ══════════════════════════════════════
+async function loadComisiones(){
+  // Cargar select de vendedores
+  const{data:vends}=await sb.from('vendedores').select('id,nombre,apellido').eq('estado','activo').order('apellido');
+  const selV=document.getElementById('liqVend');
+  selV.innerHTML='<option value="">Todos los vendedores</option>'+
+    (vends||[]).map(v=>`<option value="${v.id}">${v.apellido}, ${v.nombre}</option>`).join('');
+
+  // Historial de liquidaciones
+  loadLiqHistorial();
+}
+
+async function loadLiqHistorial(){
+  const{data}=await sb.from('liquidaciones_comision').select('*').order('created_at',{ascending:false});
+  document.getElementById('liqTbl').innerHTML = !(data?.length)
+    ? '<div class="empty">No hay liquidaciones registradas aún.</div>'
+    : `<table><thead><tr><th>Período</th><th>Vendedor</th><th>Afiliados</th><th>Total Cuotas</th><th>Comisión %</th><th>Total Comisión</th><th>Estado</th><th>F. Liquidación</th><th></th></tr></thead>
+       <tbody>${data.map(l=>`<tr>
+         <td style="font-weight:600">${l.periodo||'—'}</td>
+         <td style="font-weight:500">${l.vendedor_nombre||'—'}</td>
+         <td><span class="badge bb">${l.total_afiliados}</span></td>
+         <td>${fmt(l.total_cuotas)}</td>
+         <td style="color:var(--teal);font-weight:700">${l.porcentaje_aplicado}%</td>
+         <td style="font-weight:700;color:var(--warning);font-size:14px">${fmt(l.total_comision)}</td>
+         <td>${badge(l.estado)}</td>
+         <td>${fmtD(l.fecha_liquidacion)}</td>
+         <td style="white-space:nowrap">
+           <button class="btn-ico" onclick="verDetalleLiq('${l.id}')">👁</button>
+           ${l.estado==='pendiente'?`<button class="btn-ico" onclick="marcarPagado('${l.id}')" title="Marcar como pagado">✅</button>`:''}
+           <button class="btn-ico del" onclick="eliminarLiq('${l.id}')">🗑</button>
+         </td></tr>`).join('')}</tbody></table>`;
+}
+
+async function calcularLiquidacion(){
+  const mes=parseInt(document.getElementById('liqM').value);
+  const anio=parseInt(document.getElementById('liqA').value);
+  const vendFiltro=document.getElementById('liqVend').value;
+  const periodo=`${meses[mes]} ${anio}`;
+  const mesStr=String(mes).padStart(2,'0');
+
+  // Rango de fechas del mes seleccionado
+  const fechaDesde=`${anio}-${mesStr}-01`;
+  const fechaHasta=new Date(anio,mes,0).toDate?new Date(anio,mes,0).toISOString().split('T')[0]:
+    `${anio}-${mesStr}-${new Date(anio,mes,0).getDate()}`;
+
+  document.getElementById('liqPreview').innerHTML='<div class="loading"><div class="ms"></div>Calculando comisiones…</div>';
+  document.getElementById('btnProcLiq').style.display='none';
+
+  // Traer afiliados ingresados en el período (por fecha_alta o fecha_ingreso_sistema)
+  let qAf = sb.from('afiliados')
+    .select('id,nombre,apellido,vendedor_id,plan_id,fecha_alta,fecha_ingreso_sistema,planes(nombre,cuota_titular),vendedores(id,nombre,apellido)')
+    .gte('fecha_ingreso_sistema',fechaDesde)
+    .lte('fecha_ingreso_sistema',fechaHasta)
+    .not('vendedor_id','is',null);
+  if(vendFiltro) qAf=qAf.eq('vendedor_id',vendFiltro);
+  const{data:afs}=await qAf;
+
+  if(!afs?.length){
+    document.getElementById('liqPreview').innerHTML=`
+      <div style="background:#fff8e1;border-radius:10px;padding:20px;border:1px solid #ffe082;text-align:center">
+        <div style="font-size:24px;margin-bottom:8px">📭</div>
+        <div style="font-weight:600;color:#e67e22">No hay afiliados con vendedor ingresados en ${mesesLargo[mes]} ${anio}</div>
+        <div style="font-size:12.5px;color:var(--gray);margin-top:4px">Verificá que los afiliados tengan vendedor asignado y fecha de alta en este período</div>
+      </div>`;
+    return;
+  }
+
+  // Traer configuraciones de comisión
+  const{data:configs}=await sb.from('comisiones_config').select('*').eq('activo',true);
+
+  // Agrupar por vendedor
+  const vendMap={};
+  afs.forEach(a=>{
+    const vid=a.vendedor_id;
+    if(!vendMap[vid]){
+      vendMap[vid]={
+        id:vid,
+        nombre:(a.vendedores?.apellido||'')+', '+(a.vendedores?.nombre||''),
+        afiliados:[],
+        totalCuotas:0,
+        totalComision:0,
+        detalle:[],
+      };
+    }
+    // Buscar config de comisión para este vendedor + plan
+    const cfg=configs?.find(c=>c.vendedor_id===vid&&c.plan_id===a.plan_id)
+      || configs?.find(c=>c.vendedor_id===vid&&!c.plan_id); // config genérica
+    const cuota=Number(a.planes?.cuota_titular||0);
+    const pct=cfg?Number(cfg.porcentaje||0):0;
+    const comision=cuota*(pct/100);
+    vendMap[vid].afiliados.push(a);
+    vendMap[vid].totalCuotas+=cuota;
+    vendMap[vid].totalComision+=comision;
+    vendMap[vid].detalle.push({
+      afiliado:(a.apellido||'')+', '+(a.nombre||''),
+      plan:a.planes?.nombre||'—',
+      cuota,pct,comision,
+      fechaAlta:a.fecha_ingreso_sistema||a.fecha_alta,
+      configId:cfg?.id||null,
+    });
+  });
+
+  const rows=Object.values(vendMap).sort((a,b)=>b.totalComision-a.totalComision);
+  const totalGeneral=rows.reduce((s,v)=>s+v.totalComision,0);
+  const totalCuotas=rows.reduce((s,v)=>s+v.totalCuotas,0);
+
+  _liqData={periodo,mes,anio,rows};
+
+  let html=`
+    <div style="background:#e0f2f1;border-radius:10px;padding:14px;margin-bottom:14px;border:1px solid #b2dfdb">
+      <div style="font-weight:700;font-size:13.5px;color:var(--teal-d);margin-bottom:2px">
+        Liquidación: ${mesesLargo[mes]} ${anio} — ${afs.length} afiliados ingresados con vendedor asignado
+      </div>
+      <div style="font-size:12.5px;color:var(--gray)">
+        Total cuotas: ${fmt(totalCuotas)} · 
+        <strong style="color:var(--warning)">Total comisiones: ${fmt(totalGeneral)}</strong>
+      </div>
+    </div>`;
+
+  rows.forEach(v=>{
+    const pctProm=v.afiliados.length?((v.totalComision/v.totalCuotas)*100).toFixed(1):0;
+    html+=`
+      <div style="border:1.5px solid var(--lg);border-radius:10px;margin-bottom:12px;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--cream)">
+          <div>
+            <div style="font-weight:700;font-size:14px">${v.nombre}</div>
+            <div style="font-size:12px;color:var(--gray)">${v.afiliados.length} afiliados · ${fmt(v.totalCuotas)} en cuotas</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:11px;color:var(--gray);text-transform:uppercase;letter-spacing:1px">Comisión total</div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:700;color:var(--warning)">${fmt(v.totalComision)}</div>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+            <thead><tr style="background:#f8fbfa">
+              <th style="padding:7px 12px;text-align:left;font-size:10px;color:var(--gray);letter-spacing:.8px;text-transform:uppercase;border-bottom:1px solid var(--lg)">Afiliado</th>
+              <th style="padding:7px 12px;text-align:left;font-size:10px;color:var(--gray);letter-spacing:.8px;text-transform:uppercase;border-bottom:1px solid var(--lg)">Plan</th>
+              <th style="padding:7px 12px;text-align:right;font-size:10px;color:var(--gray);letter-spacing:.8px;text-transform:uppercase;border-bottom:1px solid var(--lg)">Cuota</th>
+              <th style="padding:7px 12px;text-align:center;font-size:10px;color:var(--gray);letter-spacing:.8px;text-transform:uppercase;border-bottom:1px solid var(--lg)">% Comisión</th>
+              <th style="padding:7px 12px;text-align:right;font-size:10px;color:var(--gray);letter-spacing:.8px;text-transform:uppercase;border-bottom:1px solid var(--lg)">Comisión</th>
+              <th style="padding:7px 12px;text-align:left;font-size:10px;color:var(--gray);letter-spacing:.8px;text-transform:uppercase;border-bottom:1px solid var(--lg)">Alta</th>
+            </tr></thead>
+            <tbody>
+              ${v.detalle.map((d,i)=>`<tr style="border-bottom:1px solid #f2f2f2;background:${i%2?'var(--cream)':'#fff'}">
+                <td style="padding:8px 12px;font-weight:500">${d.afiliado}</td>
+                <td style="padding:8px 12px">${d.plan}</td>
+                <td style="padding:8px 12px;text-align:right">${fmt(d.cuota)}</td>
+                <td style="padding:8px 12px;text-align:center">
+                  ${d.pct>0?`<span class="badge bt">${d.pct}%</span>`:`<span class="badge by">Sin config</span>`}
+                </td>
+                <td style="padding:8px 12px;text-align:right;font-weight:700;color:${d.comision>0?'var(--warning)':'var(--gray)'}">${fmt(d.comision)}</td>
+                <td style="padding:8px 12px;color:var(--gray);font-size:11.5px">${fmtD(d.fechaAlta)}</td>
+              </tr>`).join('')}
+              <tr style="background:var(--cream);font-weight:700">
+                <td colspan="2" style="padding:10px 12px">SUBTOTAL ${v.nombre}</td>
+                <td style="padding:10px 12px;text-align:right">${fmt(v.totalCuotas)}</td>
+                <td style="padding:10px 12px;text-align:center;color:var(--teal)">${pctProm}% prom.</td>
+                <td style="padding:10px 12px;text-align:right;color:var(--warning);font-size:14px">${fmt(v.totalComision)}</td>
+                <td></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  });
+
+  document.getElementById('liqPreview').innerHTML=html;
+  document.getElementById('btnProcLiq').style.display='inline-flex';
+}
+
+async function procesarLiquidacion(){
+  if(!_liqData||!_liqData.rows?.length){toast('Primero calcule la liquidación','wrn');return;}
+  if(!confirm(`¿Registrar la liquidación de comisiones para ${_liqData.periodo}?\nSe creará una liquidación por cada vendedor.`))return;
+
+  let ok=0,err=0;
+  for(const v of _liqData.rows){
+    const pctProm=v.afiliados.length?(v.totalComision/v.totalCuotas*100):0;
+    const{error}=await sb.from('liquidaciones_comision').insert({
+      periodo:_liqData.periodo,
+      vendedor_id:v.id,
+      vendedor_nombre:v.nombre,
+      total_afiliados:v.afiliados.length,
+      total_cuotas:v.totalCuotas,
+      porcentaje_aplicado:parseFloat(pctProm.toFixed(2)),
+      total_comision:v.totalComision,
+      estado:'pendiente',
+      detalle:v.detalle,
+      fecha_liquidacion:new Date().toISOString().split('T')[0],
+    });
+    if(error) err++; else ok++;
+  }
+
+  if(ok>0) toast(`✅ ${ok} liquidación(es) registrada(s) para ${_liqData.periodo}`);
+  if(err>0) toast(`⚠️ ${err} error(es) al registrar. ¿Ya existe liquidación para este período/vendedor?`,'wrn');
+
+  _liqData=null;
+  document.getElementById('liqPreview').innerHTML='';
+  document.getElementById('btnProcLiq').style.display='none';
+  loadLiqHistorial();
+  loadDashboard();
+}
+
+async function marcarPagado(id){
+  const{error}=await sb.from('liquidaciones_comision').update({
+    estado:'pagado',fecha_pago:new Date().toISOString().split('T')[0]
+  }).eq('id',id);
+  if(error){toast('Error: '+error.message,'err');return;}
+  toast('✅ Liquidación marcada como pagada');loadLiqHistorial();
+}
+
+async function verDetalleLiq(id){
+  const{data:l}=await sb.from('liquidaciones_comision').select('*').eq('id',id).single();
+  if(!l)return;
+  document.getElementById('mLiqDetSub').textContent=`${l.periodo} — ${l.vendedor_nombre}`;
+  const detalle=l.detalle||[];
+  document.getElementById('mLiqDetContent').innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
+      <div class="liq-box"><div class="liq-box-lbl">Afiliados</div><div class="liq-box-val">${l.total_afiliados}</div></div>
+      <div class="liq-box"><div class="liq-box-lbl">Total Cuotas</div><div class="liq-box-val" style="font-size:20px">${fmt(l.total_cuotas)}</div></div>
+      <div class="liq-box"><div class="liq-box-lbl">Comisión Total</div><div class="liq-box-val" style="color:var(--warning)">${fmt(l.total_comision)}</div></div>
+    </div>
+    <table><thead><tr><th>Afiliado</th><th>Plan</th><th>Cuota</th><th>% Comisión</th><th>Comisión</th><th>Alta</th></tr></thead>
+    <tbody>${detalle.map(d=>`<tr>
+      <td style="font-weight:500">${d.afiliado||'—'}</td>
+      <td>${d.plan||'—'}</td>
+      <td>${fmt(d.cuota)}</td>
+      <td style="text-align:center"><span class="badge bt">${d.pct||0}%</span></td>
+      <td style="font-weight:700;color:var(--warning)">${fmt(d.comision)}</td>
+      <td>${fmtD(d.fechaAlta)}</td>
+    </tr>`).join('')}</tbody>
+    <tfoot><tr>
+      <td colspan="4" style="padding:10px 12px;font-weight:700;color:var(--gray)">TOTAL</td>
+      <td style="padding:10px 12px;font-weight:800;font-size:16px;color:var(--warning)">${fmt(l.total_comision)}</td>
+      <td></td>
+    </tr></tfoot></table>
+    <div style="margin-top:12px;display:flex;gap:12px;font-size:12.5px;color:var(--gray)">
+      <span>Estado: ${badge(l.estado)}</span>
+      <span>Liquidado: ${fmtD(l.fecha_liquidacion)}</span>
+      ${l.fecha_pago?`<span>Pagado: ${fmtD(l.fecha_pago)}</span>`:''}
+    </div>`;
+  openM('mLiqDet');
+}
+
+function eliminarLiq(id){
+  confirmar('¿Eliminar esta liquidación?',async()=>{
+    const{error}=await sb.from('liquidaciones_comision').delete().eq('id',id);
+    if(error){toast('Error: '+error.message,'err');return;}
+    toast('Liquidación eliminada');loadLiqHistorial();
+  });
+}
+
+// ══ INFORMES ══
+async function genInforme(tipo){
+  const titulos={
+    padron:'👥 Padrón Completo de Afiliados',morosos:'⚠️ Afiliados con Saldo Deudor',
+    cobros:'💰 Recaudación por Período',estado_resultados:'📊 Estado de Resultados',
+    prestadores:'🏥 Red de Prestadores — Cartilla Completa',
+    comisiones:'💼 Liquidaciones de Comisiones por Vendedor'
+  };
+  document.getElementById('infResult').style.display='block';
+  document.getElementById('infTitulo').textContent=titulos[tipo]||tipo;
+  document.getElementById('infTabla').innerHTML='<div class="loading"><div class="ms"></div>Generando…</div>';
+
+  let html='';
+  if(tipo==='padron'){
+    const{data}=await sb.from('afiliados').select('numero,apellido,nombre,dni,estado,planes(nombre),vendedores(nombre,apellido),telefono,grupo_empresa,fecha_alta').order('apellido');
+    html=`<table><thead><tr><th>Nº</th><th>Apellido y Nombre</th><th>DNI</th><th>Plan</th><th>Estado</th><th>Vendedor</th><th>Teléfono</th><th>Alta</th></tr></thead>
+      <tbody>${(data||[]).map(a=>`<tr>
+        <td>${a.numero||'—'}</td><td style="font-weight:500">${a.apellido||''}, ${a.nombre||''}</td>
+        <td>${a.dni||'—'}</td><td>${a.planes?.nombre||'—'}</td>
+        <td>${badge(a.estado)}</td>
+        <td style="font-size:12px">${a.vendedores?a.vendedores.apellido+', '+a.vendedores.nombre:'—'}</td>
+        <td>${a.telefono||'—'}</td><td>${fmtD(a.fecha_alta)}</td></tr>`).join('')}</tbody></table>`;
+
+  }else if(tipo==='morosos'){
+    const{data:ccData}=await sb.from('cuenta_corriente').select('afiliado_id,importe,tipo,afiliados(nombre,apellido,planes(nombre),telefono)');
+    const saldoMap={},afMap={};
+    (ccData||[]).forEach(r=>{
+      if(!saldoMap[r.afiliado_id]) saldoMap[r.afiliado_id]=0;
+      saldoMap[r.afiliado_id]+=(r.tipo==='debito'?1:-1)*Number(r.importe||0);
+      if(r.afiliados) afMap[r.afiliado_id]=r.afiliados;
+    });
+    const morosos=Object.entries(saldoMap).filter(([,s])=>s>0).sort((a,b)=>b[1]-a[1]);
+    const totalDeuda=morosos.reduce((s,[,v])=>s+v,0);
+    html=morosos.length?`
+      <div style="margin-bottom:12px;padding:10px;background:#fdecea;border-radius:8px;font-size:13px;color:#c62828">
+        <strong>${morosos.length} afiliados con deuda</strong> · Total: ${fmt(totalDeuda)}
+      </div>
+      <table><thead><tr><th>Afiliado</th><th>Plan</th><th>Teléfono</th><th>Saldo Deudor</th></tr></thead>
+      <tbody>${morosos.map(([id,s])=>`<tr>
+        <td style="font-weight:500">${afMap[id]?afMap[id].apellido+', '+afMap[id].nombre:'—'}</td>
+        <td>${afMap[id]?.planes?.nombre||'—'}</td><td>${afMap[id]?.telefono||'—'}</td>
+        <td style="color:var(--danger);font-weight:700">${fmt(s)}</td></tr>`).join('')}</tbody></table>`
+      :'<div class="empty">✅ Sin afiliados con saldo deudor</div>';
+
+  }else if(tipo==='cobros'){
+    const{data}=await sb.from('cobros').select('periodo,importe,estado').eq('estado','acreditado');
+    const mapa={};
+    (data||[]).forEach(c=>{ if(!mapa[c.periodo]) mapa[c.periodo]={n:0,tot:0}; mapa[c.periodo].n++;mapa[c.periodo].tot+=Number(c.importe||0); });
+    const rows=Object.entries(mapa).sort((a,b)=>b[0].localeCompare(a[0]));
+    const total=rows.reduce((s,[,v])=>s+v.tot,0);
+    html=`<table><thead><tr><th>Período</th><th>Cantidad</th><th>Total Acreditado</th></tr></thead>
+      <tbody>${rows.map(([p,v])=>`<tr><td style="font-weight:500">${p}</td><td>${v.n}</td>
+        <td style="font-weight:600;color:var(--teal)">${fmt(v.tot)}</td></tr>`).join('')}
+      <tr style="border-top:2px solid var(--lg)"><td colspan="2" style="font-weight:700">TOTAL</td>
+        <td style="font-weight:700;color:var(--teal)">${fmt(total)}</td></tr>
+      </tbody></table>`;
+
+  }else if(tipo==='estado_resultados'){
+    const{data}=await sb.from('fin_transacciones').select('tipo,importe,estado,periodo').neq('estado','anulado');
+    const mapa={};
+    (data||[]).forEach(t=>{ if(!mapa[t.periodo]) mapa[t.periodo]={ing:0,egr:0}; if(t.tipo==='ingreso') mapa[t.periodo].ing+=Number(t.importe||0); else mapa[t.periodo].egr+=Number(t.importe||0); });
+    const rows=Object.entries(mapa).sort((a,b)=>b[0].localeCompare(a[0]));
+    html=rows.length?`<table><thead><tr><th>Período</th><th>Ingresos</th><th>Egresos</th><th>Resultado</th><th>Margen</th></tr></thead>
+      <tbody>${rows.map(([p,v])=>{const n=v.ing-v.egr;const mg=v.ing?((n/v.ing)*100).toFixed(1):0;return`<tr>
+        <td style="font-weight:600">${p}</td>
+        <td style="color:var(--success)">${fmt(v.ing)}</td>
+        <td style="color:var(--danger)">${fmt(v.egr)}</td>
+        <td style="font-weight:700;color:${n>=0?'var(--success)':'var(--danger)'}">${fmt(n)}</td>
+        <td style="color:var(--gray)">${mg}%</td></tr>`;}).join('')}</tbody></table>`
+      :'<div class="empty">Sin transacciones</div>';
+
+  }else if(tipo==='comisiones'){
+    const{data}=await sb.from('liquidaciones_comision').select('*').order('created_at',{ascending:false});
+    if(!data?.length){html='<div class="empty">Sin liquidaciones registradas</div>';}
+    else{
+      // Agrupar por vendedor
+      const vendMap={};
+      data.forEach(l=>{
+        if(!vendMap[l.vendedor_nombre]) vendMap[l.vendedor_nombre]={liquidaciones:[],totalPagado:0,totalPendiente:0};
+        vendMap[l.vendedor_nombre].liquidaciones.push(l);
+        if(l.estado==='pagado') vendMap[l.vendedor_nombre].totalPagado+=Number(l.total_comision||0);
+        else vendMap[l.vendedor_nombre].totalPendiente+=Number(l.total_comision||0);
+      });
+      html='';
+      for(const[nom,v] of Object.entries(vendMap)){
+        html+=`<h4 style="margin:16px 0 8px;color:var(--teal);font-family:'Cormorant Garamond',serif;font-size:16px;font-weight:600;border-bottom:1px solid var(--lg);padding-bottom:4px">
+          💼 ${nom} — Pagado: ${fmt(v.totalPagado)} · Pendiente: ${fmt(v.totalPendiente)}</h4>
+        <table><thead><tr><th>Período</th><th>Afiliados</th><th>Total Cuotas</th><th>Comisión</th><th>Estado</th><th>F. Liquidación</th></tr></thead>
+          <tbody>${v.liquidaciones.map(l=>`<tr>
+            <td style="font-weight:600">${l.periodo}</td><td>${l.total_afiliados}</td>
+            <td>${fmt(l.total_cuotas)}</td>
+            <td style="font-weight:700;color:var(--warning)">${fmt(l.total_comision)}</td>
+            <td>${badge(l.estado)}</td><td>${fmtD(l.fecha_liquidacion)}</td>
+          </tr>`).join('')}</tbody></table>`;
+      }
+    }
+  }else if(tipo==='prestadores'){
+    const{data}=await sb.from('prestadores').select('*').order('segmento').order('especialidades').order('razon_social');
+    const segMap={};
+    (data||[]).forEach(p=>{const s=p.segmento||p.zona||'Sin segmento';if(!segMap[s])segMap[s]=[];segMap[s].push(p);});
+    html='';
+    for(const[seg,prests] of Object.entries(segMap)){
+      const activos=prests.filter(p=>p.estado==='activo').length;
+      html+=`<h4 style="margin:16px 0 8px;color:var(--teal);font-family:'Cormorant Garamond',serif;font-size:16px;font-weight:600;border-bottom:1px solid var(--lg);padding-bottom:4px">
+        📍 ${seg} — ${activos}/${prests.length} activos</h4>
+      <table><thead><tr><th>Razón Social</th><th>Especialidad</th><th>Tipo</th><th>Dirección</th><th>Teléfono</th><th>Estado</th></tr></thead>
+        <tbody>${prests.map(p=>`<tr style="${p.estado!=='activo'?'opacity:0.5':''}">
+          <td style="font-weight:500">${p.razon_social||'—'}</td>
+          <td>${p.especialidades||'—'}</td><td>${tipoLabel(p.tipo)}</td>
+          <td>${p.direccion||p.zona||'—'}</td><td>${p.telefono||'—'}</td>
+          <td>${badge(p.estado)}</td></tr>`).join('')}
+        </tbody></table>`;
+    }
+  }
+  document.getElementById('infTabla').innerHTML=html||'<div class="empty">Sin datos</div>';
+}
+
+// ══ USUARIOS ══
+async function loadUsr(){
+  const{data}=await sb.from('user_profiles').select('*').order('nombre');
+  document.getElementById('usrTbl').innerHTML=`
+    <table><thead><tr><th>Nombre</th><th>Rol</th><th>Estado</th><th>Último Acceso</th></tr></thead>
+    <tbody>${(data||[]).map(u=>`<tr>
+      <td style="font-weight:500">${u.nombre||''} ${u.apellido||''}</td>
+      <td>${badge(u.rol,u.rol)}</td>
+      <td><span class="badge ${u.activo?'bg':'by'}">${u.activo?'Activo':'Inactivo'}</span></td>
+      <td>${u.ultimo_acceso?fmtD(u.ultimo_acceso):'Nunca'}</td>
+    </tr>`).join('')}</tbody></table>`;
+}
+async function guardarUsr(){
+  const nm=document.getElementById('us_nm').value.trim();
+  const ap=document.getElementById('us_ap').value.trim();
+  const em=document.getElementById('us_em').value.trim();
+  const pw=document.getElementById('us_pw').value;
+  const rl=document.getElementById('us_rl').value;
+  if(!nm||!ap||!em||!pw){toast('Complete todos los campos','err');return;}
+  if(pw.length<8){toast('Contraseña mínimo 8 caracteres','err');return;}
+  const{data,error}=await sb.rpc('crear_usuario_sistema',{p_email:em,p_password:pw,p_nombre:nm,p_apellido:ap,p_rol:rl});
+  if(error){toast('Error: '+error.message,'err');return;}
+  if(data&&!data.success){toast('Error: '+data.error,'err');return;}
+  toast(`Usuario ${nm} ${ap} creado`);closeM('mUsr');loadUsr();
+}
+
+// ══ REPORTES EXCEL (SheetJS) ══
+function xlsStyle(bg,fg,bold,sz,halign,italic){
+  return{font:{name:'Arial',bold:!!bold,sz:sz||10,color:{rgb:fg||'FF1A2E2A'},italic:!!italic},
+    fill:{patternType:'solid',fgColor:{rgb:bg||'FFFFFFFF'}},
+    alignment:{horizontal:halign||'left',vertical:'center',wrapText:true},
+    border:{top:{style:'thin',color:{rgb:'FFCCCCCC'}},bottom:{style:'thin',color:{rgb:'FFCCCCCC'}},
+      left:{style:'thin',color:{rgb:'FFCCCCCC'}},right:{style:'thin',color:{rgb:'FFCCCCCC'}}}};
+}
+const TEAL_XLS='FF2A7A6B',GOLD_XLS='FFF5B830',WHITE_XLS='FFFFFFFF',
+  DARK_XLS='FF1A2E2A',LTEAL_XLS='FFD6EDE9',GRAY_XLS='FFF4F7F6',
+  RED_XLS='FFC0392B',GREEN_XLS='FF27AE60';
+
+function xlsHeader(ws,titulo,cols,rowStart){
+  if(!ws['!merges'])ws['!merges']=[];
+  for(let c=0;c<cols;c++){ws[XLSX.utils.encode_cell({r:rowStart,c})]={v:c===0?'CUIDALMA — Sistema de Gestión Integral de Salud':'',t:'s',s:xlsStyle(TEAL_XLS,WHITE_XLS,true,c===0?14:10,'center')};}
+  ws['!merges'].push({s:{r:rowStart,c:0},e:{r:rowStart,c:cols-1}});
+  const r2=rowStart+1;
+  for(let c=0;c<cols;c++)ws[XLSX.utils.encode_cell({r:r2,c})]={v:c===0?titulo:'',t:'s',s:xlsStyle(GOLD_XLS,DARK_XLS,true,12,'center')};
+  ws['!merges'].push({s:{r:r2,c:0},e:{r:r2,c:cols-1}});
+  const r3=rowStart+2;
+  const fecha='Fecha de emisión: '+new Date().toLocaleString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  for(let c=0;c<cols;c++)ws[XLSX.utils.encode_cell({r:r3,c})]={v:c===0?fecha:'',t:'s',s:{font:{name:'Arial',sz:9,italic:true,color:{rgb:DARK_XLS}},fill:{patternType:'solid',fgColor:{rgb:LTEAL_XLS}},alignment:{horizontal:'left',vertical:'center'}}};
+  ws['!merges'].push({s:{r:r3,c:0},e:{r:r3,c:cols-1}});
+  return rowStart+3;
+}
+
+async function xlsAfiliados(){
+  const btn=document.getElementById('btnXlsAf');
+  btn.disabled=true;btn.textContent='⏳ Generando…';
+  try{
+    const{data:afs}=await sb.from('afiliados')
+      .select('numero,apellido,nombre,dni,estado,planes(nombre,cuota_titular),vendedores(nombre,apellido),telefono,email,grupo_empresa,fecha_alta,direccion')
+      .order('apellido');
+    const{data:ccs}=await sb.from('cuenta_corriente').select('afiliado_id,importe,tipo');
+    const saldoMap={};
+    (ccs||[]).forEach(r=>{
+      if(!saldoMap[r.afiliado_id])saldoMap[r.afiliado_id]=0;
+      saldoMap[r.afiliado_id]+=(r.tipo==='debito'?1:-1)*Number(r.importe||0);
+    });
+    const wb=XLSX.utils.book_new();
+    const ws={};
+    const COLS=['#','DNI','APELLIDO Y NOMBRE','PLAN','CUOTA ($)','VENDEDOR','ESTADO CC','TELÉFONO','EMAIL','ALTA'];
+    const WCOLS=[5,14,28,10,12,20,12,14,24,10];
+    let row=xlsHeader(ws,'LISTADO DE AFILIADOS',COLS.length,0);
+    COLS.forEach((h,ci)=>{ws[XLSX.utils.encode_cell({r:row,c:ci})]={v:h,t:'s',s:xlsStyle(TEAL_XLS,WHITE_XLS,true,9,'center')};});
+    row++;
+    (afs||[]).forEach((a,idx)=>{
+      const bg=idx%2===0?WHITE_XLS:GRAY_XLS;
+      const saldo=saldoMap[a.id]||0;
+      const estadoCC=saldo>0?'MOROSO':'AL DÍA';
+      const vendNom=a.vendedores?a.vendedores.apellido+', '+a.vendedores.nombre:'—';
+      const vals=[idx+1,a.dni||'',(a.apellido||'')+', '+(a.nombre||''),
+        a.planes?.nombre||'—',Number(a.planes?.cuota_titular||0),vendNom,estadoCC,
+        a.telefono||'—',a.email||'—',
+        a.fecha_alta?new Date(a.fecha_alta+'T12:00:00').toLocaleDateString('es-AR'):'—'];
+      vals.forEach((val,ci)=>{
+        const addr=XLSX.utils.encode_cell({r:row,c:ci});
+        let st=ci===4?xlsStyle(bg,TEAL_XLS,true,10,'center')
+          :ci===6?xlsStyle(bg,saldo>0?RED_XLS:GREEN_XLS,true,9,'center')
+          :ci===3?xlsStyle(bg,TEAL_XLS,true,10,'center')
+          :ci===0?xlsStyle(bg,DARK_XLS,false,10,'center')
+          :xlsStyle(bg,DARK_XLS,false,10,'left');
+        ws[addr]={v:val,t:typeof val==='number'?'n':'s',s:st};
+        if(ci===4)ws[addr].z='$#,##0';
+      });
+      row++;
+    });
+    ws['!ref']=XLSX.utils.encode_range({r:0,c:0},{r:row,c:COLS.length-1});
+    ws['!cols']=WCOLS.map(w=>({wch:w}));
+    XLSX.utils.book_append_sheet(wb,ws,'Afiliados');
+    XLSX.writeFile(wb,'CUIDALMA_Listado_Afiliados_'+new Date().toISOString().slice(0,10)+'.xlsx');
+    toast('✅ Listado de Afiliados descargado');
+  }catch(e){toast('Error al generar: '+e.message,'err');}
+  finally{btn.disabled=false;btn.textContent='⬇ Descargar Excel';}
+}
+
+async function xlsEstadoCuenta(){
+  const btn=document.getElementById('btnXlsCC');
+  btn.disabled=true;btn.textContent='⏳ Generando…';
+  try{
+    // 1) Traer afiliados con DNI y plan
+    const{data:afsRaw,error:errAf}=await sb.from('afiliados')
+      .select('id,apellido,nombre,dni,planes(nombre,cuota_titular)')
+      .not('estado','eq','baja')
+      .order('apellido');
+    if(errAf) throw new Error('Error cargando afiliados: '+errAf.message);
+    const afs=afsRaw||[];
+    if(!afs.length) throw new Error('No hay afiliados activos/morosos para generar el reporte.');
+
+    // 2) Traer saldos de cuenta corriente
+    const{data:ccs}=await sb.from('cuenta_corriente').select('afiliado_id,importe,tipo,periodo,comprobante');
+    const saldoMap={};
+    const compMap={}; // último comprobante por afiliado
+    (ccs||[]).forEach(r=>{
+      if(!saldoMap[r.afiliado_id]) saldoMap[r.afiliado_id]=0;
+      saldoMap[r.afiliado_id]+=(r.tipo==='debito'?1:-1)*Number(r.importe||0);
+      if(r.comprobante) compMap[r.afiliado_id]=r.comprobante;
+    });
+
+    // 3) Calcular fecha de vencimiento (día 10 del mes siguiente al actual)
+    const hoy=new Date();
+    const venc=new Date(hoy.getFullYear(),hoy.getMonth(),10);
+    if(hoy.getDate()>10) venc.setMonth(venc.getMonth()+1);
+    const vencStr=venc.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
+    const periodoStr=(hoy.getMonth()+1).toString().padStart(2,'0')+'/'+hoy.getFullYear();
+
+    // 4) Construir AOA — UNA SOLA HOJA, formato CUID_DEUDAS
+    const aoa=[];
+
+    // Cabecera del archivo
+    aoa.push(['CUIDALMA — Estado de Cuentas','','','','']);
+    aoa.push(['Fecha de emisión: '+hoy.toLocaleDateString('es-AR'),'','','','']);
+    aoa.push(['','','','','']);
+
+    // Encabezados de columna
+    aoa.push(['DNI','APELLIDO Y NOMBRE','PERIODO','VENCIMIENTO','NRO FACTURA','MONTO']);
+
+    // Una fila por afiliado — todos, tengan o no saldo
+    let contAfiliados=0;
+    afs.forEach(af=>{
+      const saldo=saldoMap[af.id]||0;
+      contAfiliados++;
+      aoa.push([
+        af.dni||'—',
+        (af.apellido||'')+', '+(af.nombre||''),
+        periodoStr,
+        vencStr,
+        compMap[af.id]||'-',
+        Number(saldo)
+      ]);
+    });
+
+    if(!contAfiliados) throw new Error('No hay afiliados para generar el reporte.');
+
+    // Fila de total
+    aoa.push(['','','','','TOTAL',{f:`SUM(F5:F${4+contAfiliados})`}]);
+
+    // 5) Crear hoja y workbook
+    const ws=XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols']=[{wch:14},{wch:30},{wch:10},{wch:14},{wch:16},{wch:14}];
+
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,'Estado de Cuentas');
+
+    XLSX.writeFile(wb,'CUIDALMA_Estado_de_Cuentas_'+new Date().toISOString().slice(0,10)+'.xlsx');
+    toast('✅ Estado de Cuentas descargado — '+contAfiliados+' afiliados');
+  }catch(e){toast('Error al generar: '+e.message,'err');}
+  finally{btn.disabled=false;btn.textContent='⬇ Descargar Excel';}
+}
+
+// ══ HELPERS PERÍODO ══
+function buildPeriodo(mesVal,anioVal){
+  const m=['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  return m[parseInt(mesVal)]+' '+anioVal;
+}
+function setPeriodoSelects(idMes,idAnio,periodoStr){
+  const m=['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  if(!periodoStr)return;
+  const p=periodoStr.split(' ');
+  if(p.length===2){const idx=m.indexOf(p[0]);if(idx>0)document.getElementById(idMes).value=idx;document.getElementById(idAnio).value=p[1];}
+}
+function getPeriodoFromSelects(idMes,idAnio){
+  return buildPeriodo(document.getElementById(idMes).value,document.getElementById(idAnio).value);
+}
+
+// ══ INIT ══
+initAuth();
+</script>
+</body>
+</html>
