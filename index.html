@@ -1064,7 +1064,7 @@ function nav(id){
 async function loadDashboard(){
   const [rAf,rCob,rPr,rCC,rCRM,rFin,rLiq] = await Promise.all([
     sb.from('afiliados').select('estado,plan_id,planes(nombre,cuota_titular)'),
-    sb.from('cobros').select('importe,estado,periodo'),
+    sb.from('cobros').select('importe,estado,periodo,fecha_cobro'),
     sb.from('prestadores').select('estado'),
     sb.from('cuenta_corriente').select('afiliado_id,importe,tipo'),
     sb.from('crm_gestiones').select('estado,prioridad'),
